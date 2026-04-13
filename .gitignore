@@ -1,0 +1,35 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# Claude / AI session files (local only)
+.claude/
+*.session
+
+# Sensitive personal info — keep private
+finances/private/
+*.private
+*.sensitive
+
+# Temporary files
+*.tmp
+*.temp
+~$*
+
+# Python
+__pycache__/
+*.py[cod]
+.env
+venv/
+
+# Node
+node_modules/
+
+# Local config overrides
+*.local
