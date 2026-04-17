@@ -1,0 +1,6 @@
+podcast_script*.txt
+newsletters_processed.html
+podcast_error.html
+podcast_tts.log
+podcast_tts_error.log
+.podcast_ready
