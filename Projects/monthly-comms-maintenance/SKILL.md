@@ -3,7 +3,7 @@ name: monthly-comms-maintenance
 description: Monthly check of Communication OS health — newsletter labels, new senders, and system status
 ---
 
-You are running a monthly maintenance check on Dalton Haslam's Communication OS system. This task runs on the 1st of each month at 9am. Your job is to audit the system and surface anything that needs attention — especially newsletter labeling gaps, new newsletter sources, and anything that may have drifted.
+You are running a monthly maintenance check on Dalton Haslam's Communication OS system. This task runs on the 1st of each month at 7pm. Your job is to audit the system and surface anything that needs attention — especially newsletter labeling gaps, new newsletter sources, and anything that may have drifted.
 
 Output is an HTML file written to ~/Documents/Claude/Personal/Projects/monthly-comms-maintenance/maintenance.html. A Shortcut automation picks it up at 9:15am and creates an Apple Note titled "Comm OS Maintenance".
 
@@ -57,10 +57,7 @@ python3 << 'PYEOF'
 import glob, os
 
 matches = glob.glob('/sessions/*/mnt/Claude')
-if not matches:
-    print("ERROR: Could not find workspace")
-    exit(1)
-workspace = matches[0]
+workspace = matches[0] if matches else '/Users/daltonhaslam/Documents/Claude'
 
 brief_dir = os.path.join(workspace, 'Personal/Projects/monthly-comms-maintenance')
 os.makedirs(brief_dir, exist_ok=True)
@@ -95,7 +92,7 @@ PYEOF
 <ul>
   <li>Daily Brief: scheduled 7pm nightly</li>
   <li>Newsletter Podcast: scheduled Monday 8pm</li>
-  <li>Monthly Maintenance: scheduled 1st of each month 9am</li>
+  <li>Monthly Maintenance: scheduled 1st of each month 7pm</li>
 </ul>
 
 <hr>

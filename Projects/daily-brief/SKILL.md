@@ -152,10 +152,7 @@ python3 << 'PYEOF'
 import glob, os
 
 matches = glob.glob('/sessions/*/mnt/Claude')
-if not matches:
-    print("ERROR: Could not find workspace mount")
-    exit(1)
-workspace = matches[0]
+workspace = matches[0] if matches else '/Users/daltonhaslam/Documents/Claude'
 
 brief_dir = os.path.join(workspace, 'Personal/Projects/daily-brief')
 os.makedirs(brief_dir, exist_ok=True)

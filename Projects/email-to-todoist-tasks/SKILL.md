@@ -11,8 +11,6 @@ You are scanning Dalton Haslam's Gmail for actionable emails and adding tasks to
   - mcp__b83d701b-1e39-48fa-a982-c906ee421dc6__find-tasks
   - mcp__b83d701b-1e39-48fa-a982-c906ee421dc6__add-tasks
 - Write tool and Bash tool (for writing/deleting the failure notification file)
-- mcp__cowork__request_cowork_directory (for mounting the notification folder)
-- mcp__cowork__allow_cowork_file_delete (for enabling file deletion)
 
 ---
 
@@ -65,34 +63,23 @@ For each new, non-duplicate actionable task, use mcp__b83d701b-1e39-48fa-a982-c9
 
 ---
 
-## Step 6 — Mount Folder, Then Write or Delete Notification File
+## Step 6 — Write or Delete Notification File
 
-The notification file Mac path is: `/Users/daltonhaslam/Documents/Claude/Personal/Projects/email-to-todoist-tasks/todoistfailure/todoist_failure.txt`
+The notification file path is: `/Users/daltonhaslam/Documents/Claude/Personal/Projects/email-to-todoist-tasks/todoistfailure/todoist_failure.txt`
 
 This file is monitored by an Apple Shortcut on Dalton's Mac. When the file exists, the Shortcut fires and creates an Apple Note alerting him that Todoist sync failed and listing the missed tasks. Always complete this step on every run — do not skip it.
 
-### Step 6a — Mount the folder
-Call `mcp__cowork__request_cowork_directory` with path `/Users/daltonhaslam/Documents/Claude/Personal/Projects/email-to-todoist-tasks/todoistfailure`.
-
-The result will include a VM mount path (e.g. `/sessions/XXXX/mnt/todoistfailure`). Note this VM path — you will need it for the bash delete command and for allow_cowork_file_delete.
-
-### Step 6b — Write or delete
-
 **If Todoist calls failed (authentication error or any write failure):**
-Use the Write tool with the Mac path to create or overwrite the file:
-- Mac path: `/Users/daltonhaslam/Documents/Claude/Personal/Projects/email-to-todoist-tasks/todoistfailure/todoist_failure.txt`
-- Contents should be plain text including:
-  - Date of the run
-  - Error encountered (e.g. "Authentication failure")
-  - Bulleted list of each task that failed to be added, with its full description
+Use the Write tool to create or overwrite the file at the path above. Contents should be plain text including:
+- Date of the run
+- Error encountered (e.g. "Authentication failure")
+- Bulleted list of each task that failed to be added, with its full description
 
 **If all Todoist writes succeeded (or no actionable emails were found):**
-1. Call `mcp__cowork__allow_cowork_file_delete` with the VM path to the file: `{vm_mount_path}/todoist_failure.txt`
-2. Then delete using bash with the VM path:
+Delete the file using Bash:
 ```bash
-rm -f '{vm_mount_path}/todoist_failure.txt'
+rm -f '/Users/daltonhaslam/Documents/Claude/Personal/Projects/email-to-todoist-tasks/todoistfailure/todoist_failure.txt'
 ```
-Replace `{vm_mount_path}` with the actual VM path returned in Step 6a (e.g. `/sessions/XXXX/mnt/todoistfailure`).
 
 This signals to the Shortcut that no failure occurred and clears any prior alert.
 

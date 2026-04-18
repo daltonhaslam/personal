@@ -68,10 +68,7 @@ import glob, os
 from datetime import datetime
 
 matches = glob.glob('/sessions/*/mnt/Claude')
-if not matches:
-    print("ERROR: workspace not found")
-    exit(1)
-workspace = matches[0]
+workspace = matches[0] if matches else '/Users/daltonhaslam/Documents/Claude'
 brief_dir = os.path.join(workspace, 'Personal/Projects/weekly-newsletter-podcast')
 os.makedirs(brief_dir, exist_ok=True)
 
@@ -99,7 +96,7 @@ python3 << 'PYEOF'
 import glob, os
 
 matches = glob.glob('/sessions/*/mnt/Claude')
-workspace = matches[0]
+workspace = matches[0] if matches else '/Users/daltonhaslam/Documents/Claude'
 brief_dir = os.path.join(workspace, 'Personal/Projects/weekly-newsletter-podcast')
 
 html = """HTML_CONTENT_HERE"""
