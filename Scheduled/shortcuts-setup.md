@@ -4,13 +4,9 @@ These Shortcuts run automatically on the Mac and pick up output files written by
 
 ---
 
-## Shortcut 1: Daily Brief → Apple Notes
+## ~~Shortcut 1: Daily Brief → Apple Notes~~ (Retired)
 
-**Actions:**
-1. Get File → `~/Documents/Claude/Personal/Projects/daily-brief/brief.html`
-2. Create Note with (File) in iCloud Notes — Name: `Daily Brief`
-
-**Automation:** Daily at 7:15 PM, Run Immediately
+The daily brief now creates the Apple Note directly via `run_daily_brief.sh` using osascript. No Shortcut required. If this Shortcut still exists in Shortcuts.app it can be deleted or disabled.
 
 ---
 
@@ -48,7 +44,7 @@ These Shortcuts run automatically on the Mac and pick up output files written by
 
 | File | Written by | Read by |
 |---|---|---|
-| `~/Documents/Claude/Personal/Projects/daily-brief/brief.html` | daily-brief task (7:00 PM nightly) | Daily Brief Shortcut (7:15 PM) |
+| `~/Documents/Claude/Personal/Projects/daily-brief/brief.html` | daily-brief task (7:00 PM nightly) | osascript in run_daily_brief.sh (same run) |
 | `~/Documents/Claude/Personal/Projects/weekly-newsletter-podcast/newsletters_processed.html` | podcast task (Monday 7:00 PM) | Newsletters Processed Shortcut (Monday 7:15 PM) |
 | `~/Documents/Claude/Personal/Projects/monthly-comms-maintenance/maintenance.html` | maintenance task (1st of month 7:00 PM) | Monthly Maintenance Shortcut (1st at 7:15 PM) |
 | `~/Documents/Claude/Personal/Projects/email-to-todoist-tasks/todoistfailure/todoist_failure.txt` | email-to-todoist task (on failure) | Todoist Failure Monitor Shortcut |

@@ -4,7 +4,7 @@
 
 ## Structure
 - `Projects/` — active and future projects
-  - `daily-brief/` — nightly 7pm brief → brief.html → Apple Note via Shortcut
+  - `daily-brief/` — nightly 7pm brief → brief.html → Apple Note via LaunchAgent + osascript (no Shortcut needed)
   - `weekly-newsletter-podcast/` — Monday 8pm newsletter podcast → audio via Mac LaunchAgent
   - `monthly-comms-maintenance/` — 1st-of-month Gmail audit → maintenance.html → Apple Note
   - `email-to-todoist-tasks/` — nightly email scan → Todoist Personal project

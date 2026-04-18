@@ -1,9 +1,15 @@
 ---
 name: daily-brief
-description: Generate Dalton's evening daily brief and save it as brief.html on his Mac
+description: Generate Dalton's evening daily brief and save it to Apple Notes at 7pm
 ---
 
-You are generating a personalized daily brief for Dalton Haslam and saving it as an HTML file on his local Mac. You are running locally via the claude CLI — not in a cloud sandbox. No path discovery needed; use the hardcoded paths below.
+You are generating a personalized daily brief for Dalton Haslam and saving it as an HTML file on his Mac. This task runs every evening at 7pm. A separate Apple Shortcut automation picks up the file at 7:15pm and creates the Apple Note.
+
+## Available Tools
+- Gmail MCP: gmail_search_messages, gmail_read_message
+- Google Calendar MCP: gcal_list_events, gcal_list_calendars
+- Todoist MCP: find-tasks-by-date
+- Bash tool: for running shell commands and writing files
 
 ## Todoist Project Reference
 - 6W59m22P9ccJgmR7 = MWH PA Job
@@ -56,37 +62,18 @@ Merge results from both calls, deduplicate by event ID, then sort by start time.
 ---
 
 ## Step 3 — Pull Tasks from Todoist
-Make THREE separate find-tasks calls:
+Use find-tasks-by-date with:
+- startDate: today's date (YYYY-MM-DD)
+- daysCount: 2
+- overdueOption: "include-overdue"
+- limit: 50
 
-**Call 1 — Past due + today:**
-- filter: `(today | overdue) & !#Someday Maybe`
-- limit: 100
-
-**Call 2 — Due tomorrow:**
-- filter: `tomorrow & !#Someday Maybe`
-- limit: 100
-
-**Call 3 — Tasks with a deadline:**
-- filter: `deadline after: 1 Jan 2000`
-- limit: 100
-
-Map projectId to project name using the reference above.
-
-Organize as follows:
-
-**Past Due** (results from Call 1):
-- p1/p2 tasks: list each by name and project
-- p3/p4 tasks: show as "+ X other tasks past due" (count only)
-
-**Due Tomorrow** (results from Call 2):
-- p1/p2 tasks: list each by name and project
-- p3/p4 tasks: show as "+ X other tasks due tomorrow" (count only)
-
-**Upcoming Deadlines** (results from Call 3 — show regardless of due date):
-- List every task by name, project, and deadline date
-- A task may appear here AND in Past Due/Due Tomorrow if it has both fields set
-
-Omit a subsection entirely if it has no tasks.
+From the results, organize as follows:
+- **Overdue p1/p2**: tasks past due with priority 1 or 2 — show all with task name and project
+- **Overdue p4 count**: count of overdue tasks with priority 4 only — show as "+ X lower priority tasks overdue"
+- **Due tomorrow**: all tasks due tomorrow regardless of priority — show all with task name and project
+- Map projectId to project name using the reference above
+- Exclude any tasks from project 6Crg6xfv3f5458XP (Someday Maybe)
 
 ---
 
@@ -118,20 +105,15 @@ Build an HTML document. Omit any section with zero items. Keep each line concise
 </ul>
 
 <h3>📋 Tasks</h3>
-<p><b>Past Due</b></p>
+<p><b>Overdue — High Priority</b></p>
 <ul>
   <li><b>p1</b> &nbsp;Task name &nbsp;<i>(Project)</i></li>
   <li><b>p2</b> &nbsp;Task name &nbsp;<i>(Project)</i></li>
 </ul>
-<p><i>+ X other tasks past due</i></p>
+<p><i>+ X lower priority tasks overdue</i></p>
 <p><b>Due Tomorrow</b></p>
 <ul>
-  <li><b>p1</b> &nbsp;Task name &nbsp;<i>(Project)</i></li>
-</ul>
-<p><i>+ X other tasks due tomorrow</i></p>
-<p><b>Upcoming Deadlines</b></p>
-<ul>
-  <li>Task name &nbsp;<i>(Project)</i> &nbsp;— deadline <b>Apr 22</b></li>
+  <li>Task name &nbsp;<i>(Project)</i></li>
 </ul>
 
 <h3>⚡ Action Required</h3>
@@ -163,17 +145,27 @@ Build an HTML document. Omit any section with zero items. Keep each line concise
 ---
 
 ## Step 6 — Write to File
-Use Bash to write the HTML to the hardcoded path:
+Use Bash to write the HTML to the project folder:
 
 ```bash
 python3 << 'PYEOF'
+import glob, os
+
+matches = glob.glob('/sessions/*/mnt/Claude')
+workspace = matches[0] if matches else '/Users/daltonhaslam/Documents/Claude'
+
+brief_dir = os.path.join(workspace, 'Personal/Projects/daily-brief')
+os.makedirs(brief_dir, exist_ok=True)
+
 html = """HTML_CONTENT_HERE"""
 
-with open('/Users/daltonhaslam/Documents/Claude/Personal/Projects/daily-brief/brief.html', 'w') as f:
+with open(os.path.join(brief_dir, 'brief.html'), 'w') as f:
     f.write(html)
-print("Brief written to: /Users/daltonhaslam/Documents/Claude/Personal/Projects/daily-brief/brief.html")
+print(f"Brief written to: {brief_dir}/brief.html")
 PYEOF
 ```
+
+The file saves to ~/Documents/Claude/Personal/Projects/daily-brief/brief.html on the Mac. The Apple Shortcut automation picks it up at 7:15pm and creates the Apple Note titled "Daily Brief".
 
 ---
 
