@@ -69,8 +69,17 @@ Omit a subsection entirely if it has no tasks after filtering.
 ---
 
 ## Step 4 — Scan Today's Gmail
-Use gmail_search_messages with query: `newer_than:1d -category:promotions -label:spam -label:Newsletters`
-Fetch up to 40 messages. For relevant messages use gmail_read_message to get sender, subject, and snippet.
+Run via Bash:
+```bash
+bash /Users/daltonhaslam/Documents/Claude/Personal/skills/gmail-fetch/search-emails.sh \
+  --query "newer_than:1d -category:promotions -label:spam -label:Newsletters" \
+  --max-results 40
+```
+Returns a JSON array of `{id, threadId, snippet, subject, from, date}`. Categorize each message from these fields directly. If an email is ambiguous and needs full body context, run:
+```bash
+bash /Users/daltonhaslam/Documents/Claude/Personal/skills/gmail-fetch/read-email.sh \
+  --message-id <id> --depth full
+```
 
 Categorize each into ONE bucket:
 - **Action Required**: needs a reply, approval, decision, or follow-up

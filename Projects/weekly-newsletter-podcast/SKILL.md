@@ -8,21 +8,60 @@ This is an automated run of a scheduled task. The user is not present. Execute a
 You are generating a weekly newsletter podcast script for Dalton Haslam. This task runs every Monday evening. It fetches newsletters, writes a dialogue script to a file, then drops a trigger file that wakes a macOS LaunchAgent on Dalton's Mac. The LaunchAgent synthesizes audio using the built-in `say` command with premium neural voices (Evan + Ava) and saves an MP3 to iCloud Drive.
 
 ## Available Tools
-- Gmail MCP: gmail_search_messages, gmail_read_message
+- Bash tool: for Gmail CLI scripts and running shell commands
 - Write tool: for writing files
-- Bash tool: for running shell commands
 
 ---
 
 ## STEP 1 — Fetch Newsletter Emails (past 7 days)
-Search Gmail for each source simultaneously. Read full content using gmail_read_message.
+For each source, search then read full content via Bash. Run searches sequentially.
 
-**Sources:**
-1. Healthcare Brew: `from:healthcarebrew@morningbrew.com newer_than:7d`
-2. Health Tech Nerds (weekly only): `from:newsletter@mail.healthtechnerds.com newer_than:7d` — include ONLY emails with "Weekly Health Tech Reads" in subject. Skip event invites.
-3. Book Freak: `from:no-reply@substack.com subject:"Book Freak" newer_than:7d`
-4. ACPA News to Note: `from:info@acpadvisors.org subject:"News to Note" newer_than:35d`
-5. Robert Oubre MD: `from:dr_oubre@robertoubremd.com newer_than:7d`
+**Sources and commands:**
+
+1. **Healthcare Brew:**
+```bash
+bash /Users/daltonhaslam/Documents/Claude/Personal/skills/gmail-fetch/search-emails.sh \
+  --query "from:healthcarebrew@morningbrew.com newer_than:7d" --max-results 3
+# For each id returned:
+bash /Users/daltonhaslam/Documents/Claude/Personal/skills/gmail-fetch/read-email.sh \
+  --message-id <id> --depth full
+```
+
+2. **Health Tech Nerds** (weekly only — skip event invites):
+```bash
+bash /Users/daltonhaslam/Documents/Claude/Personal/skills/gmail-fetch/search-emails.sh \
+  --query "from:newsletter@mail.healthtechnerds.com newer_than:7d" --max-results 3
+# Include ONLY emails with "Weekly Health Tech Reads" in subject. For those:
+bash /Users/daltonhaslam/Documents/Claude/Personal/skills/gmail-fetch/read-email.sh \
+  --message-id <id> --depth full
+```
+
+3. **Book Freak:**
+```bash
+bash /Users/daltonhaslam/Documents/Claude/Personal/skills/gmail-fetch/search-emails.sh \
+  --query "from:no-reply@substack.com subject:\"Book Freak\" newer_than:7d" --max-results 3
+# For each id returned:
+bash /Users/daltonhaslam/Documents/Claude/Personal/skills/gmail-fetch/read-email.sh \
+  --message-id <id> --depth full
+```
+
+4. **ACPA News to Note:**
+```bash
+bash /Users/daltonhaslam/Documents/Claude/Personal/skills/gmail-fetch/search-emails.sh \
+  --query "from:info@acpadvisors.org subject:\"News to Note\" newer_than:35d" --max-results 3
+# For each id returned:
+bash /Users/daltonhaslam/Documents/Claude/Personal/skills/gmail-fetch/read-email.sh \
+  --message-id <id> --depth full
+```
+
+5. **Robert Oubre MD:**
+```bash
+bash /Users/daltonhaslam/Documents/Claude/Personal/skills/gmail-fetch/search-emails.sh \
+  --query "from:dr_oubre@robertoubremd.com newer_than:7d" --max-results 3
+# For each id returned:
+bash /Users/daltonhaslam/Documents/Claude/Personal/skills/gmail-fetch/read-email.sh \
+  --message-id <id> --depth full
+```
 
 If no newsletters found at all, write a podcast_error.html to the project folder (using workspace glob method below) explaining no content was found, then stop.
 

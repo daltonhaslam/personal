@@ -6,11 +6,8 @@ description: Scan Gmail inbox for actionable tasks and add them to the Todoist "
 You are scanning Dalton Haslam's Gmail for actionable emails and adding tasks to his Todoist Personal project. This task runs every evening at 7pm.
 
 ## Available Tools
-- Gmail MCP: gmail_search_messages, gmail_read_message
-- Todoist MCP (use full tool names as listed below):
-  - mcp__b83d701b-1e39-48fa-a982-c906ee421dc6__find-tasks
-  - mcp__b83d701b-1e39-48fa-a982-c906ee421dc6__add-tasks
-- Write tool and Bash tool (for writing/deleting the failure notification file)
+- Bash tool (for Gmail CLI scripts, Todoist CLI scripts, and writing/deleting the failure notification file)
+- Write tool (for writing the failure notification file)
 
 ---
 
@@ -22,9 +19,17 @@ python3 -c "from datetime import datetime; print(datetime.now().strftime('%Y-%m-
 ---
 
 ## Step 2 — Scan Gmail
-Use gmail_search_messages with query: `newer_than:1d -in:trash -in:spam -label:Newsletters`
-
-This searches ALL mail folders (inbox, archived, sent, etc.) — not just the inbox. Newsletters, trash, and spam are excluded. Retrieve up to 40 messages. For each one that looks promising based on subject/sender, use gmail_read_message to read the full content.
+Run via Bash:
+```bash
+bash /Users/daltonhaslam/Documents/Claude/Personal/skills/gmail-fetch/search-emails.sh \
+  --query "newer_than:1d -in:trash -in:spam -label:Newsletters" \
+  --max-results 40
+```
+This searches ALL mail folders (inbox, archived, sent, etc.) — not just the inbox. Newsletters, trash, and spam are excluded. Returns a JSON array of `{id, threadId, snippet, subject, from, date}`. Assess actionability from these fields. For ambiguous emails that need full body to confirm, run:
+```bash
+bash /Users/daltonhaslam/Documents/Claude/Personal/skills/gmail-fetch/read-email.sh \
+  --message-id <id> --depth full
+```
 
 **Skip (not actionable):**
 - Newsletters and marketing emails
@@ -50,16 +55,24 @@ For each actionable email, build:
 ---
 
 ## Step 4 — Check for Duplicates
-Before adding each task, use mcp__b83d701b-1e39-48fa-a982-c906ee421dc6__find-tasks to search the Personal project (project ID: 6Crg6xfrxV9Pj3x8) for existing tasks with a similar name. If a task with the same or highly similar subject already exists (open or recently completed), skip it — do not add a duplicate.
+Before adding each task, run:
+```bash
+bash /Users/daltonhaslam/Documents/Claude/Personal/skills/todoist-write/find-tasks.sh \
+  --query "<task name>" \
+  --project-id 6Crg6xfrxV9Pj3x8
+```
+Returns a JSON array. If the array is non-empty (a task with a similar name already exists), skip it — do not add a duplicate.
 
 ---
 
 ## Step 5 — Add Tasks to Todoist
-For each new, non-duplicate actionable task, use mcp__b83d701b-1e39-48fa-a982-c906ee421dc6__add-tasks:
-- projectId: `6Crg6xfrxV9Pj3x8` (Personal — sky blue)
-- content: the task name
-- due_date: date email was received
-- description: the context string from Step 3
+For each new, non-duplicate actionable task, run:
+```bash
+bash /Users/daltonhaslam/Documents/Claude/Personal/skills/todoist-write/add-task.sh \
+  --content "<task name>" \
+  --description "<From: [sender] | Subject: [subject] | Deadline: [date if found, else omit]>"
+```
+Defaults applied automatically: due = today, priority = p2, project = Personal (6Crg6xfrxV9Pj3x8), label = claude.
 
 ---
 

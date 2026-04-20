@@ -22,7 +22,7 @@ Key conventions to follow in all new scripts:
 
 ## Conversion 1: Todoist Write CLI Skill
 
-**Status:** Not started  
+**Status:** Complete  
 **Affects:** `Projects/email-to-todoist-tasks/SKILL.md`
 
 ### Goal
@@ -37,19 +37,22 @@ Replace MCP `find-tasks` + `add-tasks` calls with direct Todoist REST API script
 
 ### Scripts to Create
 
-**`skills/todoist-write/find-tasks.sh`**
+> **API Note:** `rest/v2` returns **410 Gone** — it is deprecated. Use `api/v1` for all Todoist calls. Confirmed working: `GET/POST https://api.todoist.com/api/v1/tasks`. The existing `fetch-tasks.sh` already uses `api/v1`; follow that pattern.
+
+**`skills/todoist-write/find-tasks.sh`** ✅ Done
 - Args: `--query <string>` `--project-id <id>`
-- Calls: `GET https://api.todoist.com/rest/v2/tasks?project_id=<id>` then filters by content match
-- Or use filter endpoint: `GET https://api.todoist.com/api/v1/tasks/filter?query=<query>`
-- Returns: JSON array of matching tasks (id, content, due, priority)
+- Calls: `GET https://api.todoist.com/api/v1/tasks?project_id=<id>` then filters by content match (Python, case-insensitive substring)
+- Response shape: `{"results": [...]}` — unwrap before filtering
+- Returns: JSON array of `{id, content}` for matching tasks
 - Use case: dedup check before adding a new task
 
-**`skills/todoist-write/add-task.sh`**
-- Args: `--content <string>` `--due-string <string>` `--description <string>` `--project-id <id>`
-- Calls: `POST https://api.todoist.com/rest/v2/tasks`
-- Body: JSON with content, due_string, description, project_id
-- Returns: created task JSON
-- Use case: add an actionable email as a Todoist task
+**`skills/todoist-write/add-task.sh`** ✅ Done
+- Required: `--content <string>`
+- Optional (with defaults): `--due-string "today"` `--priority 3` (p2) `--project-id 6Crg6xfrxV9Pj3x8` `--labels "claude"` `--description <string>`
+- Calls: `POST https://api.todoist.com/api/v1/tasks`
+- Body: JSON built in Python via env vars
+- Returns: compact task JSON `{id, content, due, priority, labels, url}`
+- Use case: add an actionable email (or any input) as a Todoist task
 
 ### SKILL.md Update
 Replace in `email-to-todoist-tasks/SKILL.md`:
@@ -57,15 +60,15 @@ Replace in `email-to-todoist-tasks/SKILL.md`:
 - MCP `add-tasks` call → `bash /path/to/add-task.sh --content "..." --due-string "..." --description "..." --project-id 6Crg6xfrxV9Pj3x8`
 
 ### Verification
-1. `bash skills/todoist-write/find-tasks.sh --query "test" --project-id 6Crg6xfrxV9Pj3x8` → confirm JSON array output
-2. `bash skills/todoist-write/add-task.sh --content "Test task" --due-string "today" --description "test" --project-id 6Crg6xfrxV9Pj3x8` → confirm task appears in Todoist app
-3. Trigger `email-to-todoist-tasks` manually → verify tasks created, no MCP calls in session
+1. ✅ `bash skills/todoist-write/find-tasks.sh --query "test" --project-id 6Crg6xfrxV9Pj3x8` → `[]`
+2. ✅ `bash skills/todoist-write/add-task.sh --content "Test task CLI" --description "testing"` → task with p2/claude/today confirmed
+3. ⬜ Trigger `email-to-todoist-tasks` manually → verify tasks created, no MCP calls in session
 
 ---
 
 ## Conversion 2: Gmail Fetch CLI Skill
 
-**Status:** Not started  
+**Status:** Complete  
 **Affects:** All 4 active projects (daily-brief, email-to-todoist-tasks, weekly-newsletter-podcast, monthly-comms-maintenance)
 
 ### Goal
@@ -105,32 +108,40 @@ Replace MCP `gmail_search_messages` + `gmail_read_message` across all projects.
    security add-generic-password -a gmail -s GMAIL_CLIENT_SECRET -w "<client_secret>"
    ```
 
-### Scripts to Create
+### Scripts Created
 
-**`skills/gmail-fetch/refresh-token.sh`**
+**`skills/gmail-fetch/refresh-token.sh`** ✅ Done
 - Internal helper — called by other scripts, not directly by SKILL.md
-- Reads Keychain credentials, POSTs to `https://oauth2.googleapis.com/token`
-- Prints access token to stdout
-- Scripts source this or capture its output as `ACCESS_TOKEN=$(bash refresh-token.sh)`
+- Reads Keychain: `GMAIL_REFRESH_TOKEN`, `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`
+- POSTs to `https://oauth2.googleapis.com/token`
+- Prints access token to stdout; exits 1 on failure
 
-**`skills/gmail-fetch/search-emails.sh`**
-- Args: `--query <gmail_search_string>` `--max-results <n>`
-- Calls: `GET /messages?q=<query>&maxResults=<n>`
-- Returns: JSON array of `{id, threadId, snippet}`
+**`skills/gmail-fetch/search-emails.sh`** ✅ Done
+- Args: `--query <gmail_search_string>` `--max-results <n>` (default: 40)
+- Flow: 1 search call → N metadata calls per result (format=metadata)
+- Returns: JSON array of `{id, threadId, snippet, subject, from, date}`
+- Empty result: `[]`
+- Snippet: HTML entities decoded, invisible Unicode chars stripped
 
-**`skills/gmail-fetch/read-email.sh`**
-- Args: `--message-id <id>`
-- Calls: `GET /messages/<id>?format=full`
-- Returns: JSON with `{subject, from, date, body}` — body decoded from base64, plain text preferred over HTML, stripped to readable text
+**`skills/gmail-fetch/read-email.sh`** ✅ Done
+- Args: `--message-id <id>` `--depth snippet|full` (default: full)
+- `--depth snippet`: metadata call → `{subject, from, date, snippet}`
+- `--depth full`: full message → `{subject, from, date, body}`
+  - Body: prefers HTML → markdown (skip images, convert headings/lists/paragraphs)
+  - Fallback: plain text as-is
+  - Base64 URL-safe decoded
 
-### SKILL.md Updates (4 files)
-Replace all `gmail_search_messages` → `bash .../search-emails.sh --query "..." --max-results N`  
-Replace all `gmail_read_message` → `bash .../read-email.sh --message-id <id>`
+### SKILL.md Updates (4 files) ✅ Done
+- daily-brief Step 4: `search-emails.sh` replaces `gmail_search_messages`; `read-email.sh --depth full` available for ambiguous messages
+- email-to-todoist Step 2: same pattern
+- weekly-newsletter-podcast Step 1: per-source search + `read-email.sh --depth full` for each newsletter
+- monthly-comms-maintenance Steps 1–3: search-only for audits; `read-email.sh --depth full` for new candidates
 
 ### Verification
-1. `bash skills/gmail-fetch/search-emails.sh --query "is:unread" --max-results 5` → JSON array
-2. `bash skills/gmail-fetch/read-email.sh --message-id <id from above>` → readable decoded body
-3. Trigger daily-brief manually → email section populates correctly
+1. ✅ `bash skills/gmail-fetch/search-emails.sh --query "is:unread" --max-results 3` → enriched JSON array
+2. ✅ `bash skills/gmail-fetch/read-email.sh --message-id <id> --depth full` → decoded markdown body
+3. ⬜ Trigger daily-brief manually → email section categorized correctly without MCP calls
+4. ⬜ Trigger email-to-todoist manually → tasks created, no MCP calls in session
 
 ---
 

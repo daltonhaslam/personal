@@ -8,8 +8,7 @@ You are running a monthly maintenance check on Dalton Haslam's Communication OS 
 Output is an HTML file written to ~/Documents/Claude/Personal/Projects/monthly-comms-maintenance/maintenance.html. A Shortcut automation picks it up at 9:15am and creates an Apple Note titled "Comm OS Maintenance".
 
 ## Available Tools
-- Gmail MCP: gmail_search_messages, gmail_read_message
-- Bash tool: for writing files
+- Bash tool: for Gmail CLI scripts and writing files
 
 ---
 
@@ -25,27 +24,47 @@ These senders should always have the Gmail label "Newsletters" applied:
 ---
 
 ## STEP 1 — Check for Unlabeled Newsletter Emails
-For each known sender, search for emails from the past 30 days NOT labeled "Newsletters":
-- `from:healthcarebrew@morningbrew.com newer_than:30d -label:Newsletters`
-- `from:newsletter@mail.healthtechnerds.com newer_than:30d -label:Newsletters`
-- `from:no-reply@substack.com subject:"Book Freak" newer_than:30d -label:Newsletters`
-- `from:info@acpadvisors.org subject:"News to Note" newer_than:30d -label:Newsletters`
-- `from:dr_oubre@robertoubremd.com newer_than:30d -label:Newsletters`
-
-Record: sender, count of unlabeled emails, example subject lines.
+For each known sender, run via Bash (count results to find unlabeled emails):
+```bash
+bash /Users/daltonhaslam/Documents/Claude/Personal/skills/gmail-fetch/search-emails.sh \
+  --query "from:healthcarebrew@morningbrew.com newer_than:30d -label:Newsletters" --max-results 20
+bash /Users/daltonhaslam/Documents/Claude/Personal/skills/gmail-fetch/search-emails.sh \
+  --query "from:newsletter@mail.healthtechnerds.com newer_than:30d -label:Newsletters" --max-results 20
+bash /Users/daltonhaslam/Documents/Claude/Personal/skills/gmail-fetch/search-emails.sh \
+  --query "from:no-reply@substack.com subject:\"Book Freak\" newer_than:30d -label:Newsletters" --max-results 20
+bash /Users/daltonhaslam/Documents/Claude/Personal/skills/gmail-fetch/search-emails.sh \
+  --query "from:info@acpadvisors.org subject:\"News to Note\" newer_than:30d -label:Newsletters" --max-results 20
+bash /Users/daltonhaslam/Documents/Claude/Personal/skills/gmail-fetch/search-emails.sh \
+  --query "from:dr_oubre@robertoubremd.com newer_than:30d -label:Newsletters" --max-results 20
+```
+Record: sender, count of results (array length), example subject lines.
 
 ---
 
 ## STEP 2 — Check for Inactive Newsletters
-For each known sender, check if they've sent anything in the past 45 days. If nothing found, flag as possibly inactive.
+For each known sender, check if they've sent anything in the past 45 days:
+```bash
+bash /Users/daltonhaslam/Documents/Claude/Personal/skills/gmail-fetch/search-emails.sh \
+  --query "from:healthcarebrew@morningbrew.com newer_than:45d" --max-results 1
+# (repeat for each sender)
+```
+If result is `[]`, flag as possibly inactive.
 
 ---
 
 ## STEP 3 — Hunt for New Newsletter Candidates
 Search for recurring newsletter-like emails from unknown senders:
-`unsubscribe newer_than:30d -label:Newsletters -from:healthcarebrew@morningbrew.com -from:newsletter@mail.healthtechnerds.com -from:no-reply@substack.com -from:info@acpadvisors.org -from:dr_oubre@robertoubremd.com -category:promotions`
-
-Read a sample (up to 10) and assess whether any look like recurring newsletters worth adding to the podcast. Group by sender.
+```bash
+bash /Users/daltonhaslam/Documents/Claude/Personal/skills/gmail-fetch/search-emails.sh \
+  --query "unsubscribe newer_than:30d -label:Newsletters -from:healthcarebrew@morningbrew.com -from:newsletter@mail.healthtechnerds.com -from:no-reply@substack.com -from:info@acpadvisors.org -from:dr_oubre@robertoubremd.com -category:promotions" \
+  --max-results 10
+```
+Review subjects/senders from results. For any that look like recurring newsletters, read full content:
+```bash
+bash /Users/daltonhaslam/Documents/Claude/Personal/skills/gmail-fetch/read-email.sh \
+  --message-id <id> --depth full
+```
+Group by sender and assess whether any are worth adding to the podcast.
 
 ---
 
