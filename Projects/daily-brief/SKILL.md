@@ -5,18 +5,6 @@ description: Generate Dalton's evening daily brief and save it as brief.html on 
 
 You are generating a personalized daily brief for Dalton Haslam and saving it as an HTML file on his local Mac. You are running locally via the claude CLI — not in a cloud sandbox. No path discovery needed; use the hardcoded paths below.
 
-## Todoist Project Reference
-- 6W59m22P9ccJgmR7 = MWH PA Job
-- 6gMvgRPQg9XCv4h9 = Personal
-- 6CrfF6gPVgXcfHRr = M&D (shared with wife)
-- 6Crg6xfrxV9Pj3x8 = Personal
-- 6Crg6xfrxvRpf7X4 = Financial
-- 6Crg6xfv3Rg5CWr8 = Doctored Money
-- 6CrfF6gPWGFV967H = Home
-- 6CrfF6gPf3cF58C9 = DC
-- 6Crg6xfv3f5458XP = Someday Maybe (EXCLUDE from brief)
-- Inbox = Inbox
-
 ---
 
 ## Step 1 — Get Tomorrow's Date
@@ -56,37 +44,27 @@ Merge results from both calls, deduplicate by event ID, then sort by start time.
 ---
 
 ## Step 3 — Pull Tasks from Todoist
-Make THREE separate find-tasks calls:
+Run via Bash:
+```bash
+bash /Users/daltonhaslam/Documents/Claude/Personal/skills/todoist-taskpull-highpriority/fetch-tasks.sh
+```
+If the script exits non-zero or stdout begins with `{"error":`, write "Task fetch failed" under Tasks and skip to Step 4.
 
-**Call 1 — Past due + today:**
-- filter: `(today | overdue) & !#Someday Maybe`
-- limit: 100
+Read the JSON output into working memory. Organize as follows:
 
-**Call 2 — Due tomorrow:**
-- filter: `tomorrow & !#Someday Maybe`
-- limit: 100
+**Past Due** — tasks in `sections.overdue` (due before today)
+- List each: task content and project name. Skip any task where project is "Someday Maybe".
 
-**Call 3 — Tasks with a deadline:**
-- filter: `deadline after: 1 Jan 2000`
-- limit: 100
+**Due Today** — tasks in `sections.today`
+- List each: task content and project name. Skip any task where project is "Someday Maybe".
 
-Map projectId to project name using the reference above.
+**Due Tomorrow** — tasks in `sections.tomorrow`
+- List each: task content and project name. Skip any task where project is "Someday Maybe".
 
-Organize as follows:
+**Upcoming Deadlines** — tasks in `sections.deadline_only` PLUS any task in the above sections where the `deadline` field is non-null
+- List each: task content, project, deadline date formatted as "Apr 22". Skip "Someday Maybe".
 
-**Past Due** (results from Call 1):
-- p1/p2 tasks: list each by name and project
-- p3/p4 tasks: show as "+ X other tasks past due" (count only)
-
-**Due Tomorrow** (results from Call 2):
-- p1/p2 tasks: list each by name and project
-- p3/p4 tasks: show as "+ X other tasks due tomorrow" (count only)
-
-**Upcoming Deadlines** (results from Call 3 — show regardless of due date):
-- List every task by name, project, and deadline date
-- A task may appear here AND in Past Due/Due Tomorrow if it has both fields set
-
-Omit a subsection entirely if it has no tasks.
+Omit a subsection entirely if it has no tasks after filtering.
 
 ---
 
@@ -121,14 +99,15 @@ Build an HTML document. Omit any section with zero items. Keep each line concise
 <p><b>Past Due</b></p>
 <ul>
   <li><b>p1</b> &nbsp;Task name &nbsp;<i>(Project)</i></li>
+</ul>
+<p><b>Due Today</b></p>
+<ul>
   <li><b>p2</b> &nbsp;Task name &nbsp;<i>(Project)</i></li>
 </ul>
-<p><i>+ X other tasks past due</i></p>
 <p><b>Due Tomorrow</b></p>
 <ul>
   <li><b>p1</b> &nbsp;Task name &nbsp;<i>(Project)</i></li>
 </ul>
-<p><i>+ X other tasks due tomorrow</i></p>
 <p><b>Upcoming Deadlines</b></p>
 <ul>
   <li>Task name &nbsp;<i>(Project)</i> &nbsp;— deadline <b>Apr 22</b></li>

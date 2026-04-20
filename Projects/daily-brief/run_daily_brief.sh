@@ -20,6 +20,13 @@ fi
 
 log "Using claude: $CLAUDE"
 
+TODOIST_API_TOKEN=$(security find-generic-password -a "todoist" -s "TODOIST_API_TOKEN" -w 2>/dev/null) || {
+    log "ERROR: TODOIST_API_TOKEN not found in Keychain"
+    log "Run: security add-generic-password -a todoist -s TODOIST_API_TOKEN -w YOUR_TOKEN"
+    exit 1
+}
+export TODOIST_API_TOKEN
+
 # Run claude with SKILL.md as the prompt
 "$CLAUDE" --print --dangerously-skip-permissions < "$SKILL" >> "$LOG" 2>&1
 

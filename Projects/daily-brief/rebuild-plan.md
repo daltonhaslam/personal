@@ -1,5 +1,9 @@
 # Daily Brief — Local Rebuild Plan
 > **COMPLETED 2026-04-18.** All steps implemented and tested. LaunchAgent active. See SKILL.md and run_daily_brief.sh for current state.
+>
+> **2026-04-19 UPDATE:** Todoist data pull migrated from MCP to direct REST API CLI. Step 3 in SKILL.md now runs `skills/todoist-taskpull-highpriority/fetch-tasks.sh` instead of 3 MCP `find-tasks` calls. TODOIST_API_TOKEN is extracted from macOS Keychain in run_daily_brief.sh. Architecture diagram below is partially outdated (Todoist is no longer MCP).
+>
+> **2026-04-20 UPDATE:** LaunchAgent executor changed from bare `/bin/bash` to `osascript -e 'do shell script "..."'`. Root cause: macOS Sequoia's TCC blocks launchd-spawned bash from both loading script files AND doing file I/O (read/append) on existing files in `~/Documents/` — exit 78 or 126 depending on failure mode. `osascript`'s `do shell script` runs in a full user session context, bypassing xpcproxy's TCC restrictions. Cron workaround (which required giving `/usr/sbin/cron` Full Disk Access) has been removed. See `com.dalton.dailybrief.plist` for current plist.
 
 
 ## Goal
