@@ -35,7 +35,7 @@ Replace MCP `find-tasks` + `add-tasks` calls with direct Todoist REST API script
 - Auth: `TODOIST_API_TOKEN` already in Keychain (used by `fetch-tasks.sh` — no setup needed)
 - Todoist API docs: `https://developer.todoist.com/rest/v2/`
 
-### Scripts to Create
+### Scripts Created
 
 > **API Note:** `rest/v2` returns **410 Gone** — it is deprecated. Use `api/v1` for all Todoist calls. Confirmed working: `GET/POST https://api.todoist.com/api/v1/tasks`. The existing `fetch-tasks.sh` already uses `api/v1`; follow that pattern.
 
@@ -53,11 +53,6 @@ Replace MCP `find-tasks` + `add-tasks` calls with direct Todoist REST API script
 - Body: JSON built in Python via env vars
 - Returns: compact task JSON `{id, content, due, priority, labels, url}`
 - Use case: add an actionable email (or any input) as a Todoist task
-
-### SKILL.md Update
-Replace in `email-to-todoist-tasks/SKILL.md`:
-- MCP `find-tasks` call → `bash /path/to/find-tasks.sh --query "..." --project-id 6Crg6xfrxV9Pj3x8`
-- MCP `add-tasks` call → `bash /path/to/add-task.sh --content "..." --due-string "..." --description "..." --project-id 6Crg6xfrxV9Pj3x8`
 
 ### Verification
 1. ✅ `bash skills/todoist-write/find-tasks.sh --query "test" --project-id 6Crg6xfrxV9Pj3x8` → `[]`
@@ -92,10 +87,13 @@ Replace MCP `gmail_search_messages` + `gmail_read_message` across all projects.
    python3 - <<'EOF'
    from google_auth_oauthlib.flow import InstalledAppFlow
    flow = InstalledAppFlow.from_client_secrets_file(
-       'credentials.json',
-       scopes=['https://www.googleapis.com/auth/gmail.readonly']
+       '/Users/daltonhaslam/.config/google/credentials.json',
+       scopes=[
+           'https://www.googleapis.com/auth/gmail.readonly',
+           'https://www.googleapis.com/auth/calendar.readonly',
+       ]
    )
-   creds = flow.run_local_server(port=0)
+   creds = flow.run_local_server(port=0, prompt='consent')
    print("REFRESH TOKEN:", creds.refresh_token)
    print("CLIENT ID:", creds.client_id)
    print("CLIENT SECRET:", creds.client_secret)
@@ -147,7 +145,7 @@ Replace MCP `gmail_search_messages` + `gmail_read_message` across all projects.
 
 ## Conversion 3: Google Calendar Fetch CLI Skill
 
-**Status:** Not started  
+**Status:** Complete  
 **Affects:** `Projects/daily-brief/SKILL.md` (2 calls); also sets up what-now-widget
 
 ### Goal
@@ -158,24 +156,23 @@ Replace MCP `gcal_list_events` in daily-brief with a direct Calendar API script.
 - Fetches tomorrow's events (00:00–23:59 local time)
 - **Shares Google OAuth infrastructure with Gmail** — same Keychain credentials, same `refresh-token.sh` helper. No additional setup if Gmail skill already built.
 - One additional step: enable **Google Calendar API** in the same Cloud project used for Gmail
+- **OAuth scope:** the shared refresh token must include `calendar.readonly` — re-run OAuth flow with `prompt='consent'` requesting both `gmail.readonly` and `calendar.readonly` scopes, then update `GMAIL_REFRESH_TOKEN` in Keychain
 - Calendar REST endpoint: `GET https://www.googleapis.com/calendar/v3/calendars/{calendarId}/events`
 - Params: `timeMin`, `timeMax` (RFC3339), `singleEvents=true`, `orderBy=startTime`
 
-### Script to Create
+### Script Created
 
-**`skills/gcal-fetch/list-events.sh`**
-- Args: `--calendar-id <id>` `--date <YYYY-MM-DD>`
-- Calls Calendar API with timeMin/timeMax spanning the full given date in local timezone
-- Returns: JSON array of `{title, start, end, location}` — stripped of noise (attendees, raw descriptions)
-- Can call `../gmail-fetch/refresh-token.sh` for the access token (shared Google account)
-
-### SKILL.md Update
-Replace both `gcal_list_events` calls in `daily-brief/SKILL.md` with:
-`bash .../list-events.sh --calendar-id <id> --date <tomorrow>`
+**`skills/gcal-fetch/list-events.sh`** ✅ Done
+- Args: `--calendar-id <id>` `--date <YYYY-MM-DD>` `--exclude-recurring` (optional)
+- Reuses `../gmail-fetch/refresh-token.sh` for auth (shared Google OAuth credentials)
+- Computes RFC3339 timeMin/timeMax in local timezone via Python
+- URL-encodes calendarId; calls `GET .../calendars/{id}/events` with `singleEvents=true&orderBy=startTime`
+- `--exclude-recurring` drops any item with `recurringEventId` present
+- Returns: JSON array of `{title, start, end, location}` — location omitted if absent; times as `"9:00 AM"` or `"all-day"`
 
 ### Verification
-1. `bash skills/gcal-fetch/list-events.sh --calendar-id primary --date $(date -v+1d +%Y-%m-%d)` → events listed
-2. Trigger daily-brief manually → calendar section correct
+1. ✅ `bash skills/gcal-fetch/list-events.sh --calendar-id "haslam.dalton@gmail.com" --date $(date -v+1d +%Y-%m-%d)` → events listed
+2. ✅ Trigger daily-brief manually → calendar section correct, no MCP calls
 
 ---
 
@@ -185,20 +182,20 @@ Replace both `gcal_list_events` calls in `daily-brief/SKILL.md` with:
 Personal/
 ├── Projects/
 │   ├── mcp-to-cli-roadmap.md              ← THIS FILE
-│   ├── daily-brief/SKILL.md               ← update in conversions 2 + 3
-│   ├── email-to-todoist-tasks/SKILL.md    ← update in conversions 1 + 2
-│   ├── weekly-newsletter-podcast/SKILL.md ← update in conversion 2
-│   └── monthly-comms-maintenance/SKILL.md ← update in conversion 2
+│   ├── daily-brief/SKILL.md               ← updated: conversions 2 + 3
+│   ├── email-to-todoist-tasks/SKILL.md    ← updated: conversions 1 + 2
+│   ├── weekly-newsletter-podcast/SKILL.md ← updated: conversion 2
+│   └── monthly-comms-maintenance/SKILL.md ← updated: conversion 2
 └── skills/
     ├── todoist-taskpull-highpriority/
     │   └── fetch-tasks.sh                 ← REFERENCE IMPLEMENTATION
-    ├── todoist-write/                     ← CREATE in conversion 1
+    ├── todoist-write/                     ← conversion 1
     │   ├── find-tasks.sh
     │   └── add-task.sh
-    ├── gmail-fetch/                       ← CREATE in conversion 2
-    │   ├── refresh-token.sh
+    ├── gmail-fetch/                       ← conversion 2
+    │   ├── refresh-token.sh               ← shared by gcal-fetch (Google OAuth)
     │   ├── search-emails.sh
     │   └── read-email.sh
-    └── gcal-fetch/                        ← CREATE in conversion 3
+    └── gcal-fetch/                        ← conversion 3
         └── list-events.sh
 ```

@@ -14,32 +14,32 @@ python3 -c "
 from datetime import datetime, timedelta
 tomorrow = datetime.now() + timedelta(days=1)
 print(tomorrow.strftime('%A, %B %-d, %Y'))
-print(tomorrow.strftime('%Y-%m-%dT00:00:00'))
-print(tomorrow.strftime('%Y-%m-%dT23:59:59'))
 print(tomorrow.strftime('%Y-%m-%d'))
 "
 ```
+Line 1 is the display date; line 2 (`YYYY-MM-DD`) is used in Step 2.
 
 ---
 
 ## Step 2 — Pull Tomorrow's Calendar Events
-Make TWO separate gcal_list_events calls:
+Run TWO bash commands using the `YYYY-MM-DD` date from Step 1:
 
-**Call 1 — Personal calendar** (calendarId: `haslam.dalton@gmail.com`):
-- timeMin: tomorrow at 00:00:00
-- timeMax: tomorrow at 23:59:59
-- timeZone: America/New_York
-- condenseEventDetails: false
-Include all events returned.
+**Call 1 — Personal calendar:**
+```bash
+bash /Users/daltonhaslam/Documents/Claude/Personal/skills/gcal-fetch/list-events.sh \
+  --calendar-id "haslam.dalton@gmail.com" \
+  --date <YYYY-MM-DD>
+```
 
-**Call 2 — Maggie and Dalton calendar** (calendarId: `rgq78thkje9h8p3c57718eamog@group.calendar.google.com`):
-- timeMin: tomorrow at 00:00:00
-- timeMax: tomorrow at 23:59:59
-- timeZone: America/New_York
-- condenseEventDetails: false
-**Only include non-recurring events** — discard any event that has a `recurringEventId` field present in the response.
+**Call 2 — Maggie and Dalton shared calendar (recurring events excluded):**
+```bash
+bash /Users/daltonhaslam/Documents/Claude/Personal/skills/gcal-fetch/list-events.sh \
+  --calendar-id "rgq78thkje9h8p3c57718eamog@group.calendar.google.com" \
+  --date <YYYY-MM-DD> \
+  --exclude-recurring
+```
 
-Merge results from both calls, deduplicate by event ID, then sort by start time. Include: title, start/end time formatted as 9:00 AM – 10:00 AM, location if present. Skip holidays and birthdays unless personally relevant.
+Each returns a JSON array of `{title, start, end, location}`. Merge results from both calls, deduplicate by title+start, sort by start. Include: title, start/end time formatted as 9:00 AM – 10:00 AM, location if present. Skip holidays and birthdays unless personally relevant.
 
 ---
 
