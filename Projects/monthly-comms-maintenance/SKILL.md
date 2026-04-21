@@ -5,7 +5,7 @@ description: Monthly check of Communication OS health — newsletter labels, new
 
 You are running a monthly maintenance check on Dalton Haslam's Communication OS system. This task runs on the 1st of each month at 7pm. Your job is to audit the system and surface anything that needs attention — especially newsletter labeling gaps, new newsletter sources, and anything that may have drifted.
 
-Output is an HTML file written to ~/Documents/Claude/Personal/Projects/monthly-comms-maintenance/maintenance.html. A Shortcut automation picks it up at 9:15am and creates an Apple Note titled "Comm OS Maintenance".
+Output is an HTML file written to /Users/daltonhaslam/Documents/Claude/Personal/Projects/monthly-comms-maintenance/maintenance.html. The run script creates an Apple Note from this file after Claude completes.
 
 ## Available Tools
 - Bash tool: for Gmail CLI scripts and writing files
@@ -69,21 +69,13 @@ Group by sender and assess whether any are worth adding to the podcast.
 ---
 
 ## STEP 4 — Write the Maintenance Report File
-Build the HTML report and write it to the project folder using this Bash snippet, replacing HTML_CONTENT_HERE with the full report:
+Build the HTML report and write it using this Bash snippet, replacing HTML_CONTENT_HERE with the full report:
 
 ```bash
 python3 << 'PYEOF'
-import glob, os
-
-matches = glob.glob('/sessions/*/mnt/Claude')
-workspace = matches[0] if matches else '/Users/daltonhaslam/Documents/Claude'
-
-brief_dir = os.path.join(workspace, 'Personal/Projects/monthly-comms-maintenance')
-os.makedirs(brief_dir, exist_ok=True)
-
 html = """HTML_CONTENT_HERE"""
 
-with open(os.path.join(brief_dir, 'maintenance.html'), 'w') as f:
+with open('/Users/daltonhaslam/Documents/Claude/Personal/Projects/monthly-comms-maintenance/maintenance.html', 'w') as f:
     f.write(html)
 print("Maintenance report written.")
 PYEOF
@@ -105,12 +97,12 @@ PYEOF
 <h3>🆕 New Newsletter Candidates</h3>
 [List any new recurring senders worth considering, with brief description.]
 [If none: "No new newsletter candidates detected."]
-[Note: "To add a new source, open Cowork and say: Add [sender] to the newsletter podcast task."]
+[Note: "To add a new source, open Claude Code and update Projects/weekly-newsletter-podcast/SKILL.md."]
 
 <h3>✅ System Status</h3>
 <ul>
   <li>Daily Brief: scheduled 7pm nightly</li>
-  <li>Newsletter Podcast: scheduled Monday 8pm</li>
+  <li>Newsletter Podcast: scheduled Monday 7:30pm</li>
   <li>Monthly Maintenance: scheduled 1st of each month 7pm</li>
 </ul>
 

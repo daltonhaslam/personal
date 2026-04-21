@@ -3,21 +3,21 @@
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.dalton.podcast-generator</string>
+    <string>com.dalton.commsmaintenance</string>
     <key>ProgramArguments</key>
     <array>
         <string>/usr/bin/osascript</string>
         <string>-e</string>
-        <string>do shell script "/bin/bash /Users/daltonhaslam/Documents/Claude/Personal/Projects/weekly-newsletter-podcast/run_podcast.sh"</string>
+        <string>do shell script "/bin/bash /Users/daltonhaslam/Documents/Claude/Personal/Projects/monthly-comms-maintenance/run_comms_maintenance.sh"</string>
     </array>
     <key>StartCalendarInterval</key>
     <dict>
-        <key>Weekday</key>
+        <key>Day</key>
         <integer>1</integer>
         <key>Hour</key>
         <integer>19</integer>
         <key>Minute</key>
-        <integer>30</integer>
+        <integer>0</integer>
     </dict>
 </dict>
 </plist>
