@@ -95,6 +95,17 @@ Categorize each into ONE bucket:
 Build an HTML document. Omit any section with zero items. Keep each line concise.
 
 ```html
+<style>
+  body, h2, h3, p, li, b, i {
+    color: #1a1a1a;
+  }
+  @media (prefers-color-scheme: dark) {
+    body, h2, h3, p, li, b, i {
+      color: #f0f0f0;
+    }
+  }
+</style>
+
 <h2>Daily Brief — [DAY], [DATE]</h2>
 <p><i>Generated 7:00 PM &nbsp;·&nbsp; Review tonight to plan tomorrow</i></p>
 <hr>

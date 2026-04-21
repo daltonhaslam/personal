@@ -21,7 +21,7 @@ For each source, search then read full content via Bash. Run searches sequential
 1. **Healthcare Brew:**
 ```bash
 bash /Users/daltonhaslam/Documents/Claude/Personal/skills/gmail-fetch/search-emails.sh \
-  --query "from:healthcarebrew@morningbrew.com newer_than:7d" --max-results 3
+  --query "from:healthcarebrew@morningbrew.com newer_than:7d" --max-results 7
 # For each id returned:
 bash /Users/daltonhaslam/Documents/Claude/Personal/skills/gmail-fetch/read-email.sh \
   --message-id <id> --depth full
@@ -48,7 +48,7 @@ bash /Users/daltonhaslam/Documents/Claude/Personal/skills/gmail-fetch/read-email
 4. **ACPA News to Note:**
 ```bash
 bash /Users/daltonhaslam/Documents/Claude/Personal/skills/gmail-fetch/search-emails.sh \
-  --query "from:info@acpadvisors.org subject:\"News to Note\" newer_than:35d" --max-results 3
+  --query "from:info@acpadvisors.org subject:\"News to Note\" newer_than:7d" --max-results 3
 # For each id returned:
 bash /Users/daltonhaslam/Documents/Claude/Personal/skills/gmail-fetch/read-email.sh \
   --message-id <id> --depth full
@@ -71,6 +71,8 @@ If no newsletters found at all, write a podcast_error.html to /Users/daltonhasla
 
 Write a two-host podcast script from the newsletter content.
 
+**Target length:** 18–22 minutes of spoken audio. At natural conversational pace (~130 words/minute), this is approximately 2,400–2,900 words of dialogue. Write enough to hit this target — don't pad, but don't stop short.
+
 **Hosts:**
 - Host A: more explanatory and structured
 - Host B: more curious and reactive, occasional light humor
@@ -78,6 +80,8 @@ Write a two-host podcast script from the newsletter content.
 **Structure:**
 1. Hook (1–2 min): Open with the most interesting idea — grab attention immediately
 2. Main segments: One per newsletter source (or merged if topics overlap). Natural conversation. Host A introduces each source naturally: "So this week's Healthcare Brew had something interesting about..."
+   - When a source had multiple emails, synthesize the best highlights across all of them into one unified segment — do not cover each email individually. Airtime per source should reflect content significance and novelty, not email count. A source with 5 thin emails does not outweigh a source with 1 deeply analytical one.
+   - Allocate time proportionally to content depth: a source with 4+ substantive topics warrants 4–6 minutes; a source with 1–2 items warrants 1–2 minutes.
 3. Key Takeaways (1–2 min): 3–5 most important or actionable ideas
 4. Close (30 sec): Brief natural sign-off
 
@@ -87,6 +91,7 @@ Write a two-host podcast script from the newsletter content.
 - Natural reactions: "That's wild," "Wait, so what does that mean for..."
 - No monologue longer than 4–5 sentences before the other host responds
 - Cover everything substantively — don't pad, don't truncate
+- For each topic, go beyond summary — explain context, implications, and why it matters practically. Answer "so what?" not just "what."
 
 **Output format — label each line exactly:**
 ```
