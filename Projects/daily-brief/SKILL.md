@@ -96,14 +96,16 @@ Build an HTML document. Omit any section with zero items. Keep each line concise
 
 ```html
 <style>
-  body, h2, h3, p, li, b, i {
-    color: #1a1a1a;
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    max-width: 700px;
+    margin: 40px auto;
+    padding: 0 20px;
+    color-scheme: light dark;
   }
-  @media (prefers-color-scheme: dark) {
-    body, h2, h3, p, li, b, i {
-      color: #f0f0f0;
-    }
-  }
+  ul { padding-left: 20px; }
+  li { margin-bottom: 4px; }
+  hr { border: none; border-top: 1px solid #ddd; margin: 16px 0; }
 </style>
 
 <h2>Daily Brief — [DAY], [DATE]</h2>
