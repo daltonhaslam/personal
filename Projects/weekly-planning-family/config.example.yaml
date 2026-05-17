@@ -1,0 +1,66 @@
+session:
+  default_day: thursday
+  default_time: "20:00"
+  browser: "Google Chrome"
+  server_port: 8000
+  server_abandon_timeout_hours: 4
+
+calendars:
+  shared_general: rgq78thkje9h8p3c57718eamog@group.calendar.google.com
+  shared_meals: vj5lp1it7em4nekmlra1b3c5a4@group.calendar.google.com
+  dalton_personal: haslam.dalton@gmail.com
+  schools:
+    - id: j1uk9rlvto8tejnr6jrjkolhhahf30f0@import.calendar.google.com
+      name: "Elementary"
+    # add preschool + others as iCal feeds are subscribed
+
+gmail:
+  accounts:
+    - name: dalton
+      address: haslam.dalton@gmail.com
+    - name: maggie
+      address: TBD
+  kid_school_label_id: TBD
+  default_query: "newer_than:7d -category:promotions -label:spam -label:Newsletters"
+  max_results_per_account: 50
+
+todoist:
+  projects:
+    shopping:
+      name: "To buy"
+      id: TBD
+    shopping_wants:
+      name: "To buy (less necessary)"
+      id: TBD
+    general_todos:
+      name: "MD ToDos"
+      id: TBD
+    home:
+      name: "Home"
+      id: TBD
+    meals:
+      name: "Meals"
+      id: TBD
+    date_night_ideas:
+      name: "Date Night Ideas"
+      id: TBD
+    screen_time:
+      name: "Screen time"
+      id: TBD
+    gifts_maggie:
+      name: "Maggie's Wish List"
+      id: TBD
+    gifts_dalton:
+      name: "Dalton's Wish List"
+      id: TBD
+  collaborator_ids:
+    dalton: TBD
+    maggie: TBD
+
+family:
+  owners: [Dalton, Maggie]
+  kids:
+    - name: TBD
+      age: TBD
+    - name: TBD
+      age: TBD

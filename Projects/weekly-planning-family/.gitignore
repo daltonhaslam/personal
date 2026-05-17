@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+
+# Project-specific - never commit
+tokens/
+sessions/
+config.yaml
+context.json
+retrospective.json
+margin_flags.json
+session.html
+
+# OS
+.DS_Store
