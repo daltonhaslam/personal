@@ -9,10 +9,13 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MESSAGE_ID=""
 DEPTH="full"
 
+ACCOUNT="dalton"
+
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --message-id) MESSAGE_ID="$2"; shift 2 ;;
         --depth)      DEPTH="$2";      shift 2 ;;
+        --account)    ACCOUNT="$2";    shift 2 ;;
         *) echo "Unknown argument: $1" >&2; exit 1 ;;
     esac
 done
@@ -27,7 +30,7 @@ if [[ "$DEPTH" != "snippet" && "$DEPTH" != "full" ]]; then
     exit 1
 fi
 
-ACCESS_TOKEN=$(bash "$SCRIPT_DIR/refresh-token.sh") || exit 1
+ACCESS_TOKEN=$(bash "$SCRIPT_DIR/refresh-token.sh" --account "$ACCOUNT") || exit 1
 
 MESSAGE_ID="$MESSAGE_ID" DEPTH="$DEPTH" ACCESS_TOKEN="$ACCESS_TOKEN" python3 << 'PYEOF'
 import json, os, sys, urllib.request, urllib.parse, base64, re

@@ -1,11 +1,34 @@
 #!/usr/bin/env bash
 # Exchange stored Gmail refresh token for a short-lived access token.
+# Args: [--account dalton|maggie]   (default: dalton)
 # Output: access token to stdout. Errors to stderr.
 
 set -euo pipefail
 
-REFRESH_TOKEN=$(security find-generic-password -s GMAIL_REFRESH_TOKEN -w 2>/dev/null) || {
-    echo "Error: GMAIL_REFRESH_TOKEN not found in Keychain" >&2
+ACCOUNT="dalton"
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --account) ACCOUNT="$2"; shift 2 ;;
+        *) echo "Unknown argument: $1" >&2; exit 1 ;;
+    esac
+done
+
+case "$ACCOUNT" in
+    dalton)
+        REFRESH_KEY="GMAIL_REFRESH_TOKEN"
+        ;;
+    maggie)
+        REFRESH_KEY="GMAIL_REFRESH_TOKEN_MAGGIE"
+        ;;
+    *)
+        echo "Error: --account must be 'dalton' or 'maggie' (got '$ACCOUNT')" >&2
+        exit 1
+        ;;
+esac
+
+REFRESH_TOKEN=$(security find-generic-password -s "$REFRESH_KEY" -w 2>/dev/null) || {
+    echo "Error: $REFRESH_KEY not found in Keychain" >&2
     exit 1
 }
 CLIENT_ID=$(security find-generic-password -s GMAIL_CLIENT_ID -w 2>/dev/null) || {
