@@ -33,10 +33,10 @@ todoist:
       name: "To buy (less necessary)"
       id: TBD
     general_todos:
-      name: "MD ToDos"
+      name: "MD ToDo's"
       id: TBD
     home:
-      name: "Home"
+      name: "Home 💚"
       id: TBD
     meals:
       name: "Meals"
