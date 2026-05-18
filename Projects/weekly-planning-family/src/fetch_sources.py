@@ -29,6 +29,15 @@ class Event:
     location: str = ""
     source: str = ""   # "general", "meals", "personal", "school"
 
+    @property
+    def source_class(self) -> str:
+        """Color-class slug used in the form template (`src-<slug>`).
+
+        Strips the disambiguators we add downstream — `general-horizon`
+        collapses to `general`, `school:Elementary` to `school`.
+        """
+        return self.source.split(":", 1)[0].split("-", 1)[0]
+
 
 @dataclass
 class Message:
@@ -86,6 +95,27 @@ class Context:
             "upcoming_deadlines": [t.__dict__ for t in self.upcoming_deadlines],
             "inbox_volume_flag": self.inbox_volume_flag,
         }
+
+    @classmethod
+    def from_dict(cls, d: dict) -> "Context":
+        """Canonical inverse of to_dict() — rebuild from context.json contents."""
+        return cls(
+            week_start=date.fromisoformat(d["week_start"]),
+            week_end=date.fromisoformat(d["week_end"]),
+            horizon_end=date.fromisoformat(d["horizon_end"]),
+            general_events=[Event(**e) for e in d["general_events"]],
+            meal_events_last=[Event(**e) for e in d["meal_events_last"]],
+            personal_events=[Event(**e) for e in d["personal_events"]],
+            school_events=[Event(**e) for e in d["school_events"]],
+            dalton_gmail=[Message(**m) for m in d["dalton_gmail"]],
+            maggie_gmail=[Message(**m) for m in d["maggie_gmail"]],
+            kid_school_emails=[Message(**m) for m in d["kid_school_emails"]],
+            meals_library=[Task(**t) for t in d["meals_library"]],
+            date_night_ideas=[Task(**t) for t in d["date_night_ideas"]],
+            screen_time_ideas=[Task(**t) for t in d["screen_time_ideas"]],
+            upcoming_deadlines=[Task(**t) for t in d["upcoming_deadlines"]],
+            inbox_volume_flag=d["inbox_volume_flag"],
+        )
 
 
 def _run_skill(skill_path: str | Path, args: list[str]) -> Any:

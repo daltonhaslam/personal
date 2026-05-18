@@ -52,7 +52,7 @@
     {% for day in week_days %}
       <td>
         {% for ev in day.events %}
-          <div><span class="src-{{ ev.source.split(':')[0].split('-')[0] }}"><b>{{ ev.start }}</b></span> {{ ev.title }}
+          <div><span class="src-{{ ev.source_class }}"><b>{{ ev.start }}</b></span> {{ ev.title }}
             {% if ev.location %}<i>({{ ev.location }})</i>{% endif %}
           </div>
         {% endfor %}

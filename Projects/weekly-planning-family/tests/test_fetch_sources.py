@@ -258,6 +258,35 @@ def test_assemble_context_uses_config_and_populates_fields(fixtures_dir, load_fi
     assert ctx.inbox_volume_flag is False
 
 
+def test_event_source_class_collapses_disambiguators():
+    assert Event(title="x", date="2026-05-22", start="", end="", source="general").source_class == "general"
+    assert Event(title="x", date="2026-05-22", start="", end="", source="general-horizon").source_class == "general"
+    assert Event(title="x", date="2026-05-22", start="", end="", source="school:Elementary").source_class == "school"
+    assert Event(title="x", date="2026-05-22", start="", end="", source="meals").source_class == "meals"
+
+
+def test_context_round_trip_preserves_all_fields():
+    from src.fetch_sources import Context, Message
+    ctx = Context(
+        week_start=date(2026, 5, 22),
+        week_end=date(2026, 5, 28),
+        horizon_end=date(2026, 6, 18),
+        general_events=[Event(title="t", date="2026-05-22", start="9 AM", end="10 AM", source="general")],
+        meal_events_last=[Event(title="m", date="2026-05-15", start="all-day", end="all-day", source="meals")],
+        dalton_gmail=[Message(id="1", subject="s", sender="x@y", snippet="hi", date="d", account="dalton")],
+        maggie_gmail=[Message(id="2", subject="s2", sender="a@b", snippet="ok", date="d", account="maggie")],
+        kid_school_emails=[Message(id="3", subject="s3", sender="c@d", snippet="np", date="d", account="kid_school")],
+        meals_library=[Task(id="t1", content="pasta")],
+        inbox_volume_flag=True,
+    )
+    revived = Context.from_dict(ctx.to_dict())
+    assert revived.week_start == ctx.week_start
+    assert revived.dalton_gmail[0].subject == "s"
+    assert revived.maggie_gmail[0].account == "maggie"
+    assert revived.kid_school_emails[0].snippet == "np"
+    assert revived.inbox_volume_flag is True
+
+
 def test_context_to_dict_is_json_safe(fixtures_dir):
     cfg = load_config(fixtures_dir / "config_valid.yaml")
     with patch("src.fetch_sources._run_skill", return_value=[]), \

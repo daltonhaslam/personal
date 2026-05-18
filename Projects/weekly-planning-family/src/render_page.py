@@ -2,13 +2,13 @@
 from __future__ import annotations
 
 import json
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from src.constants import PROJECT_ROOT
-from src.fetch_sources import Context, Event, Task
+from src.fetch_sources import Context, Event
 
 # Resolve templates relative to this file so it works both in-worktree and
 # at the production path without needing the constants.TEMPLATES_DIR value.
@@ -91,24 +91,6 @@ def render(
     )
 
 
-def _rehydrate_context(d: dict) -> Context:
-    """Convert serialized context.json back into a Context dataclass."""
-    return Context(
-        week_start=date.fromisoformat(d["week_start"]),
-        week_end=date.fromisoformat(d["week_end"]),
-        horizon_end=date.fromisoformat(d["horizon_end"]),
-        general_events=[Event(**e) for e in d["general_events"]],
-        meal_events_last=[Event(**e) for e in d["meal_events_last"]],
-        personal_events=[Event(**e) for e in d["personal_events"]],
-        school_events=[Event(**e) for e in d["school_events"]],
-        meals_library=[Task(**t) for t in d["meals_library"]],
-        date_night_ideas=[Task(**t) for t in d["date_night_ideas"]],
-        screen_time_ideas=[Task(**t) for t in d["screen_time_ideas"]],
-        upcoming_deadlines=[Task(**t) for t in d["upcoming_deadlines"]],
-        inbox_volume_flag=d["inbox_volume_flag"],
-    )
-
-
 def main() -> None:
     """CLI entry: read context.json + retrospective.json + margin_flags.json, write session.html."""
     with open(PROJECT_ROOT / "context.json") as f:
@@ -118,7 +100,7 @@ def main() -> None:
     with open(PROJECT_ROOT / "margin_flags.json") as f:
         margin_flags = json.load(f)
 
-    ctx = _rehydrate_context(ctx_dict)
+    ctx = Context.from_dict(ctx_dict)
 
     # CFM lesson title — placeholder; resolved in Stage 6 SKILL.md task.
     cfm_title = "this week's lesson"
