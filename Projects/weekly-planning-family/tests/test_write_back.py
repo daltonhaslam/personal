@@ -7,8 +7,10 @@ from src.write_back import (
     CalendarWriteResult,
     ValidationError,
     parse_form,
+    run_save,
     validate,
     write_calendar,
+    write_todoist,
 )
 
 
@@ -217,3 +219,86 @@ def test_write_calendar_records_failed_writes(fixtures_dir):
     assert result.created == 0
     assert result.failed == 1
     assert "oops" in result.errors[0]
+
+
+def test_write_todoist_routes_shopping_to_to_buy(fixtures_dir):
+    cfg = load_config(fixtures_dir / "config_valid.yaml")
+    decisions = {
+        "shopping_necessary": ["milk", "eggs"],
+        "shopping_wants": ["sourdough"],
+        "home_lines": [],
+        "new_deadlines": [],
+        "church_lines": [],
+        "new_meal": "",
+    }
+    calls = []
+    def fake_run(path, args):
+        calls.append({"path": str(path), "args": args})
+        return {"id": "x", "content": "ok"}
+    with patch("src.write_back._run_skill", side_effect=fake_run):
+        result = write_todoist(decisions, cfg)
+    project_ids_called = [c["args"][c["args"].index("--project-id") + 1] for c in calls]
+    assert project_ids_called.count(cfg.todoist.project_id("shopping")) == 2
+    assert project_ids_called.count(cfg.todoist.project_id("shopping_wants")) == 1
+    assert result.created == 3
+    assert result.failed == 0
+
+
+def test_write_todoist_routes_home_to_home_project(fixtures_dir):
+    cfg = load_config(fixtures_dir / "config_valid.yaml")
+    decisions = {
+        "shopping_necessary": [],
+        "shopping_wants": [],
+        "home_lines": ["Fix faucet", "Clean gutters"],
+        "new_deadlines": [],
+        "church_lines": [],
+        "new_meal": "",
+    }
+    calls = []
+    def fake_run(path, args):
+        calls.append(args)
+        return {"id": "x"}
+    with patch("src.write_back._run_skill", side_effect=fake_run):
+        result = write_todoist(decisions, cfg)
+    home_id = cfg.todoist.project_id("home")
+    assert all(home_id in c for c in calls)
+    assert result.created == 2
+
+
+def test_write_todoist_routes_new_meal_to_meals(fixtures_dir):
+    cfg = load_config(fixtures_dir / "config_valid.yaml")
+    decisions = {
+        "shopping_necessary": [], "shopping_wants": [],
+        "home_lines": [], "new_deadlines": [], "church_lines": [],
+        "new_meal": "Thai green curry",
+    }
+    calls = []
+    def fake_run(path, args):
+        calls.append(args)
+        return {"id": "x"}
+    with patch("src.write_back._run_skill", side_effect=fake_run):
+        write_todoist(decisions, cfg)
+    assert len(calls) == 1
+    assert calls[0][calls[0].index("--content") + 1] == "Thai green curry"
+    assert calls[0][calls[0].index("--project-id") + 1] == cfg.todoist.project_id("meals")
+
+
+def test_run_save_validation_failure_returns_400_payload(fixtures_dir):
+    cfg = load_config(fixtures_dir / "config_valid.yaml")
+    bad_form = {"babysitter_needed": True, "babysitter_date": "", "babysitter_time": "", "babysitter_who": ""}
+    response = run_save(bad_form, cfg)
+    assert response["status"] == "validation_error"
+    assert len(response["errors"]) >= 3
+
+
+def test_run_save_happy_path_writes_and_archives(fixtures_dir, tmp_path, monkeypatch):
+    cfg = load_config(fixtures_dir / "config_valid.yaml")
+    monkeypatch.setattr("src.write_back.SESSIONS_DIR", tmp_path)
+    form = dict(SAMPLE_FORM)
+    with patch("src.write_back._run_skill", return_value={"id": "x"}):
+        response = run_save(form, cfg)
+    assert response["status"] == "ok"
+    assert "summary_html" in response
+    archived = list(tmp_path.glob("*-session.html"))
+    assert len(archived) == 1
+    assert "Tacos" in archived[0].read_text()

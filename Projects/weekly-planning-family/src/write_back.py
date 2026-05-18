@@ -5,11 +5,13 @@ import json
 import re
 import subprocess
 from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 from src.config import Config
-from src.constants import GCAL_WRITE
+from src.constants import GCAL_WRITE, SESSIONS_DIR, TODOIST_ADD
+from src.render_summary import render_summary
 
 
 @dataclass
@@ -296,3 +298,110 @@ def write_calendar(decisions: dict, cfg: Config) -> CalendarWriteResult:
     else:
         result.detail = f"Created {result.created} events, {result.failed} failed"
     return result
+
+
+# -------- todoist writes --------
+
+def _try_create_todoist(content: str, project_id: str, role_label: str, result: TodoistWriteResult) -> None:
+    try:
+        _run_skill(TODOIST_ADD, ["--content", content, "--project-id", project_id])
+        result.created += 1
+    except subprocess.CalledProcessError as e:
+        result.failed += 1
+        result.errors.append(f"'{content}' → {role_label}: {e.stderr or 'failed'}")
+
+
+def write_todoist(decisions: dict, cfg: Config) -> TodoistWriteResult:
+    """Create Todoist tasks for all task-bound decisions."""
+    result = TodoistWriteResult()
+    routes = [
+        (decisions.get("shopping_necessary", []), "shopping"),
+        (decisions.get("shopping_wants", []), "shopping_wants"),
+        (decisions.get("home_lines", []), "home"),
+        (decisions.get("new_deadlines", []), "general_todos"),
+        (decisions.get("church_lines", []), "general_todos"),
+    ]
+    for items, role in routes:
+        try:
+            project_id = cfg.todoist.project_id(role)
+        except Exception as e:
+            result.failed += len(items)
+            result.errors.append(f"Project '{role}' not configured: {e}")
+            continue
+        for content in items:
+            _try_create_todoist(content, project_id, role, result)
+
+    new_meal = (decisions.get("new_meal") or "").strip()
+    if new_meal:
+        try:
+            project_id = cfg.todoist.project_id("meals")
+            _try_create_todoist(new_meal, project_id, "meals", result)
+        except Exception as e:
+            result.failed += 1
+            result.errors.append(f"new meal '{new_meal}': {e}")
+
+    if result.failed == 0:
+        result.detail = f"Created {result.created} tasks"
+    else:
+        result.detail = f"Created {result.created} tasks, {result.failed} failed"
+    return result
+
+
+# -------- archive + save orchestrator --------
+
+def _archive_session(summary_html: str, week_start_iso: str) -> Path:
+    SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
+    path = SESSIONS_DIR / f"{week_start_iso}-session.html"
+    path.write_text(summary_html)
+    return path
+
+
+def run_save(form: dict, cfg: Config) -> dict:
+    """Top-level save orchestrator. Returns {status, summary_html|errors, results}."""
+    decisions = parse_form(form)
+    errors = validate(decisions)
+    if errors:
+        return {
+            "status": "validation_error",
+            "errors": [{"field": e.field, "message": e.message} for e in errors],
+        }
+
+    cal_result = write_calendar(decisions, cfg)
+    todoist_result = write_todoist(decisions, cfg)
+
+    succeeded = []
+    failed = []
+    if cal_result.created > 0:
+        succeeded.append({"label": "Calendar events", "detail": cal_result.detail, "key": "calendar"})
+    if cal_result.failed > 0:
+        failed.append({"label": "Calendar events", "error": "; ".join(cal_result.errors), "key": "calendar"})
+    if todoist_result.created > 0:
+        succeeded.append({"label": "Todoist tasks", "detail": todoist_result.detail, "key": "todoist"})
+    if todoist_result.failed > 0:
+        failed.append({"label": "Todoist tasks", "error": "; ".join(todoist_result.errors), "key": "todoist"})
+
+    week_start_iso = ""
+    for d in decisions.get("dinners", []):
+        if d.get("day"):
+            week_start_iso = d["day"]
+            break
+    if not week_start_iso:
+        week_start_iso = datetime.now().date().isoformat()
+
+    week_start_display = datetime.fromisoformat(week_start_iso).strftime("%b %-d")
+    saved_at = datetime.now().strftime("%a %b %-d %-I:%M %p")
+
+    summary_html = render_summary(
+        decisions=decisions,
+        results={"succeeded": succeeded, "failed": failed},
+        week_start_display=week_start_display,
+        saved_at=saved_at,
+    )
+
+    _archive_session(summary_html, week_start_iso)
+
+    return {
+        "status": "ok",
+        "summary_html": summary_html,
+        "results": {"succeeded": succeeded, "failed": failed},
+    }
