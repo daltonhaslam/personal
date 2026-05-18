@@ -302,9 +302,23 @@ def write_calendar(decisions: dict, cfg: Config) -> CalendarWriteResult:
 
 # -------- todoist writes --------
 
-def _try_create_todoist(content: str, project_id: str, role_label: str, result: TodoistWriteResult) -> None:
+def _try_create_todoist(
+    content: str,
+    project_id: str,
+    role_label: str,
+    result: TodoistWriteResult,
+    *,
+    due_string: str = "",
+    priority: str = "",
+) -> None:
+    args = [
+        "--content", content,
+        "--project-id", project_id,
+        "--due-string", due_string,
+        "--priority", priority,
+    ]
     try:
-        _run_skill(TODOIST_ADD, ["--content", content, "--project-id", project_id])
+        _run_skill(TODOIST_ADD, args)
         result.created += 1
     except subprocess.CalledProcessError as e:
         result.failed += 1
@@ -312,16 +326,23 @@ def _try_create_todoist(content: str, project_id: str, role_label: str, result: 
 
 
 def write_todoist(decisions: dict, cfg: Config) -> TodoistWriteResult:
-    """Create Todoist tasks for all task-bound decisions."""
+    """Create Todoist tasks for all task-bound decisions.
+
+    Tasks default to no due date and no priority (the user sets these manually
+    in Todoist). Exception: items entered under 'Major deadlines' carry the
+    same defaults add-task.sh ships with (due today, priority p2) since by
+    name they're expected to be timely.
+    """
     result = TodoistWriteResult()
+    # (items, role, due_string, priority)
     routes = [
-        (decisions.get("shopping_necessary", []), "shopping"),
-        (decisions.get("shopping_wants", []), "shopping_wants"),
-        (decisions.get("home_lines", []), "home"),
-        (decisions.get("new_deadlines", []), "general_todos"),
-        (decisions.get("church_lines", []), "general_todos"),
+        (decisions.get("shopping_necessary", []), "shopping",      "",      ""),
+        (decisions.get("shopping_wants", []),     "shopping_wants", "",      ""),
+        (decisions.get("home_lines", []),         "home",           "",      ""),
+        (decisions.get("new_deadlines", []),      "general_todos",  "today", "3"),
+        (decisions.get("church_lines", []),       "general_todos",  "",      ""),
     ]
-    for items, role in routes:
+    for items, role, due, prio in routes:
         try:
             project_id = cfg.todoist.project_id(role)
         except Exception as e:
@@ -329,7 +350,7 @@ def write_todoist(decisions: dict, cfg: Config) -> TodoistWriteResult:
             result.errors.append(f"Project '{role}' not configured: {e}")
             continue
         for content in items:
-            _try_create_todoist(content, project_id, role, result)
+            _try_create_todoist(content, project_id, role, result, due_string=due, priority=prio)
 
     new_meal = (decisions.get("new_meal") or "").strip()
     if new_meal:

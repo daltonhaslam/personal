@@ -5,8 +5,8 @@
 #                    [--priority <1-4>] [--project-id <id>] [--labels <comma-separated>]
 #
 # Defaults (applied unless overridden):
-#   --due-string  "today"
-#   --priority    3              (p2; Todoist scale: 4=p1, 3=p2, 2=p3, 1=p4)
+#   --due-string  "today"        (pass "" to omit and let Todoist treat as no date)
+#   --priority    3              (p2; Todoist scale: 4=p1, 3=p2, 2=p3, 1=p4; pass "" to omit)
 #   --project-id  6Crg6xfrxV9Pj3x8  (Personal project)
 #   --labels      "claude"
 
@@ -49,11 +49,17 @@ import os
 
 payload = {
     "content":    os.environ["CONTENT"],
-    "due_string": os.environ["DUE_STRING"],
-    "priority":   int(os.environ["PRIORITY"]),
     "project_id": os.environ["PROJECT_ID"],
     "labels":     [l.strip() for l in os.environ["LABELS"].split(",") if l.strip()],
 }
+
+due = os.environ.get("DUE_STRING", "")
+if due:
+    payload["due_string"] = due
+
+prio = os.environ.get("PRIORITY", "")
+if prio:
+    payload["priority"] = int(prio)
 
 desc = os.environ.get("DESCRIPTION", "")
 if desc:

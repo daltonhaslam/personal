@@ -283,6 +283,37 @@ def test_write_todoist_routes_new_meal_to_meals(fixtures_dir):
     assert calls[0][calls[0].index("--project-id") + 1] == cfg.todoist.project_id("meals")
 
 
+def test_write_todoist_omits_due_and_priority_except_for_major_deadlines(fixtures_dir):
+    """Most items go in with no due/priority; only 'Major deadlines' get today+p2."""
+    cfg = load_config(fixtures_dir / "config_valid.yaml")
+    decisions = {
+        "shopping_necessary": ["apples"],
+        "shopping_wants": [],
+        "home_lines": ["fix faucet"],
+        "new_deadlines": ["renew passports"],
+        "church_lines": ["sign up to teach primary"],
+        "new_meal": "thai curry",
+    }
+    calls = []
+    def fake_run(path, args):
+        calls.append(args)
+        return {"id": "x"}
+    with patch("src.write_back._run_skill", side_effect=fake_run):
+        write_todoist(decisions, cfg)
+
+    def args_for(content):
+        return next(a for a in calls if a[a.index("--content") + 1] == content)
+
+    for content in ["apples", "fix faucet", "sign up to teach primary", "thai curry"]:
+        a = args_for(content)
+        assert a[a.index("--due-string") + 1] == "", f"{content} should have no due"
+        assert a[a.index("--priority") + 1] == "", f"{content} should have no priority"
+
+    a = args_for("renew passports")
+    assert a[a.index("--due-string") + 1] == "today"
+    assert a[a.index("--priority") + 1] == "3"
+
+
 def test_run_save_validation_failure_returns_400_payload(fixtures_dir):
     cfg = load_config(fixtures_dir / "config_valid.yaml")
     bad_form = {"babysitter_needed": True, "babysitter_date": "", "babysitter_time": "", "babysitter_who": ""}
