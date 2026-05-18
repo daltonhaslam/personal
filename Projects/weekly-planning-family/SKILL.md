@@ -23,47 +23,29 @@ This writes `context.json` to the project root with all the source data. Expect 
 
 ---
 
-## Step 2 — Generate the retrospective
+## Step 2 — Generate retrospective, margin flags, and CFM lesson (in parallel)
 
-Read these two files into your working context:
+These three outputs are independent. **Issue all the tool calls in a single response** so they run concurrently.
+
+Reads (issue in parallel):
 - `/Users/daltonhaslam/Documents/Claude/Personal/Projects/weekly-planning-family/context.json`
 - `/Users/daltonhaslam/Documents/Claude/Personal/Projects/weekly-planning-family/prompts/retrospective.md`
-
-Follow the instructions in `retrospective.md` exactly. Produce the JSON it specifies. Write that JSON to:
-
-`/Users/daltonhaslam/Documents/Claude/Personal/Projects/weekly-planning-family/retrospective.json`
-
-Use the Write tool. The file must be valid JSON matching the schema in the prompt.
-
----
-
-## Step 3 — Generate the margin/realism flags
-
-Read:
-- `/Users/daltonhaslam/Documents/Claude/Personal/Projects/weekly-planning-family/context.json` (already loaded from Step 2)
 - `/Users/daltonhaslam/Documents/Claude/Personal/Projects/weekly-planning-family/prompts/margin_flags.md`
+- WebFetch `https://www.churchofjesuschrist.org/study/manual/come-follow-me-for-home-and-church-old-testament-2026` (or the current year's manual) — find the lesson for the week containing `week_start` from `context.json` (CFM weeks run Mon–Sun).
 
-Follow the prompt. Write the JSON to:
+After all reads complete, follow each prompt's instructions exactly and write three files (Writes can also batch in one response):
 
-`/Users/daltonhaslam/Documents/Claude/Personal/Projects/weekly-planning-family/margin_flags.json`
+- `retrospective.json` — schema per `retrospective.md`.
+- `margin_flags.json` — schema per `margin_flags.md`. Empty `{"flags": []}` is valid.
+- `cfm_title.txt` — full lesson title (e.g., `Joshua 1–8; 23–24: "Be Strong and of a Good Courage"`).
 
-Empty list `{"flags": []}` is valid output if nothing's worth flagging.
-
----
-
-## Step 4 — Resolve this week's Come Follow Me lesson
-
-Use WebFetch to load `https://www.churchofjesuschrist.org/study/manual/come-follow-me-for-home-and-church-old-testament-2026` (or the current year's manual). From the page, identify the lesson scheduled for the upcoming week (Mon–Sun corresponding to the next planning week — use `week_start` from `context.json` as your reference; CFM weeks run Mon–Sun starting the Monday before each Sunday's lesson).
-
-Capture the lesson title (e.g., "2 Nephi 1-5: 'We Have Obtained a Land of Promise'"). Write it to:
-
-`/Users/daltonhaslam/Documents/Claude/Personal/Projects/weekly-planning-family/cfm_title.txt`
-
-If the fetch fails or you can't confidently identify this week's lesson, write `this week's lesson (fetch failed)` to the file and continue. The session is more important than this single field.
+**Per-output failure handling:**
+- If WebFetch fails or you can't confidently identify this week's lesson, write `this week's lesson (fetch failed)` to `cfm_title.txt` and continue. Do NOT block the JSON outputs on the CFM step.
+- If a JSON write fails, fix and retry — the session can't proceed without all three artifacts present.
 
 ---
 
-## Step 5 — Render the form HTML
+## Step 3 — Render the form HTML
 
 The render script reads `context.json`, `retrospective.json`, `margin_flags.json`, and `cfm_title.txt`. Run via Bash:
 
@@ -78,7 +60,7 @@ Expected: prints `session.html written: ...` and the file exists.
 
 ---
 
-## Step 6 — Start the form server in the background and open Chrome
+## Step 4 — Start the form server in the background and open Chrome
 
 Run via Bash with `run_in_background=true`:
 
