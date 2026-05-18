@@ -10,6 +10,7 @@ import json
 import subprocess
 import urllib.parse
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from pathlib import Path
@@ -195,13 +196,32 @@ def fetch_gmail(
     return messages, hit_cap
 
 
+_TODOIST_TOKEN_CACHE: str | None = None
+
+
 def _todoist_token() -> str:
-    """Read Todoist API token from macOS Keychain. Tests should monkeypatch this."""
-    result = subprocess.run(
-        ["security", "find-generic-password", "-s", "TODOIST_API_TOKEN", "-w"],
-        capture_output=True, text=True, check=True,
-    )
-    return result.stdout.strip()
+    """Read Todoist API token from macOS Keychain. Tests should monkeypatch this.
+
+    The token is cached for the lifetime of the process — assemble_context
+    issues several Todoist GETs and each was otherwise re-spawning `security`.
+    """
+    global _TODOIST_TOKEN_CACHE
+    if _TODOIST_TOKEN_CACHE is None:
+        result = subprocess.run(
+            ["security", "find-generic-password", "-s", "TODOIST_API_TOKEN", "-w"],
+            capture_output=True, text=True, check=True,
+        )
+        _TODOIST_TOKEN_CACHE = result.stdout.strip()
+    return _TODOIST_TOKEN_CACHE
+
+
+def _extract_deadline_str(raw: Any) -> str:
+    """Normalize Todoist's deadline field to a YYYY-MM-DD string (or '')."""
+    if isinstance(raw, dict):
+        return raw.get("date", "")
+    if isinstance(raw, str):
+        return raw
+    return ""
 
 
 def _todoist_get(path: str, params: dict | None = None) -> Any:
@@ -243,7 +263,7 @@ def fetch_todoist_project(*, project_id: str) -> list[Task]:
             id=t["id"],
             content=t.get("content", ""),
             description=t.get("description", ""),
-            deadline=(t.get("deadline") or {}).get("date", "") if isinstance(t.get("deadline"), dict) else (t.get("deadline") or ""),
+            deadline=_extract_deadline_str(t.get("deadline")),
             project_id=t.get("project_id", project_id),
         )
         for t in raw
@@ -262,12 +282,7 @@ def fetch_todoist_deadlines(*, window_days: int, today: date | None = None) -> l
     raw = _todoist_get("/tasks")
     out: list[Task] = []
     for t in raw:
-        dl_raw = t.get("deadline")
-        dl_str = ""
-        if isinstance(dl_raw, dict):
-            dl_str = dl_raw.get("date", "")
-        elif isinstance(dl_raw, str):
-            dl_str = dl_raw
+        dl_str = _extract_deadline_str(t.get("deadline"))
         if not dl_str:
             continue
         try:
@@ -286,79 +301,107 @@ def fetch_todoist_deadlines(*, window_days: int, today: date | None = None) -> l
 
 
 def assemble_context(cfg: Config, *, today: date | None = None) -> Context:
-    """Pull every source defined in config and return a populated Context."""
+    """Pull every source defined in config and return a populated Context.
+
+    All fetchers are independent and run in parallel via a thread pool. Each
+    fetcher is itself either a bash subprocess (Calendar/Gmail) or an HTTPS
+    GET (Todoist), so the GIL is irrelevant — wall-clock time collapses to
+    the slowest single fetcher rather than the sum.
+    """
     week_start, week_end, horizon_end = compute_week_window(today)
 
-    # Calendars: next 7d for week-at-a-glance
-    general = fetch_calendar_range(
-        calendar_id=cfg.calendars.shared_general,
-        start=week_start, end=week_end,
-        source_tag="general",
-        exclude_recurring=True,
-    )
-    # Horizon (next 2-4 weeks) — append more general events
-    horizon = fetch_calendar_range(
-        calendar_id=cfg.calendars.shared_general,
-        start=week_end + timedelta(days=1), end=horizon_end,
-        source_tag="general-horizon",
-        exclude_recurring=True,
-    )
-    general_all = general + horizon
-
-    # Meal calendar: LAST 7 days for retrospective
-    meals_last = fetch_calendar_range(
-        calendar_id=cfg.calendars.shared_meals,
-        start=week_start - timedelta(days=7),
-        end=week_start - timedelta(days=1),
-        source_tag="meals",
-    )
-
-    # Personal: next 7d
-    personal = fetch_calendar_range(
-        calendar_id=cfg.calendars.dalton_personal,
-        start=week_start, end=week_end,
-        source_tag="personal",
-        exclude_recurring=True,
-    )
-
-    # School calendars (merged)
-    school: list[Event] = []
-    for sc in cfg.calendars.schools:
-        school.extend(fetch_calendar_range(
-            calendar_id=sc.id,
+    with ThreadPoolExecutor(max_workers=12) as ex:
+        fut_general = ex.submit(
+            fetch_calendar_range,
+            calendar_id=cfg.calendars.shared_general,
             start=week_start, end=week_end,
-            source_tag=f"school:{sc.name}",
-        ))
+            source_tag="general",
+            exclude_recurring=True,
+        )
+        fut_horizon = ex.submit(
+            fetch_calendar_range,
+            calendar_id=cfg.calendars.shared_general,
+            start=week_end + timedelta(days=1), end=horizon_end,
+            source_tag="general-horizon",
+            exclude_recurring=True,
+        )
+        fut_meals_last = ex.submit(
+            fetch_calendar_range,
+            calendar_id=cfg.calendars.shared_meals,
+            start=week_start - timedelta(days=7),
+            end=week_start - timedelta(days=1),
+            source_tag="meals",
+        )
+        fut_personal = ex.submit(
+            fetch_calendar_range,
+            calendar_id=cfg.calendars.dalton_personal,
+            start=week_start, end=week_end,
+            source_tag="personal",
+            exclude_recurring=True,
+        )
+        fut_schools = [
+            ex.submit(
+                fetch_calendar_range,
+                calendar_id=sc.id,
+                start=week_start, end=week_end,
+                source_tag=f"school:{sc.name}",
+            )
+            for sc in cfg.calendars.schools
+        ]
+        fut_dalton = ex.submit(
+            fetch_gmail,
+            account="dalton",
+            query=cfg.gmail.default_query,
+            max_results=cfg.gmail.max_results_per_account,
+        )
+        fut_maggie = ex.submit(
+            fetch_gmail,
+            account="maggie",
+            query=cfg.gmail.default_query,
+            max_results=cfg.gmail.max_results_per_account,
+        )
+        fut_kid_school = ex.submit(
+            fetch_gmail,
+            account="dalton",
+            query="newer_than:7d",
+            max_results=cfg.gmail.max_results_per_account,
+            label_id=cfg.gmail.kid_school_label_id,
+        )
+        fut_meals_lib = ex.submit(
+            fetch_todoist_project,
+            project_id=cfg.todoist.project_id("meals"),
+        )
+        fut_date_night = ex.submit(
+            fetch_todoist_project,
+            project_id=cfg.todoist.project_id("date_night_ideas"),
+        )
+        fut_screen_time = ex.submit(
+            fetch_todoist_project,
+            project_id=cfg.todoist.project_id("screen_time"),
+        )
+        fut_deadlines = ex.submit(
+            fetch_todoist_deadlines,
+            window_days=14, today=today,
+        )
 
-    # Gmail: per account, plus the Kid's School label
-    dalton_msgs, dalton_cap = fetch_gmail(
-        account="dalton",
-        query=cfg.gmail.default_query,
-        max_results=cfg.gmail.max_results_per_account,
-    )
-    maggie_msgs, maggie_cap = fetch_gmail(
-        account="maggie",
-        query=cfg.gmail.default_query,
-        max_results=cfg.gmail.max_results_per_account,
-    )
-    kid_school_msgs, kid_cap = fetch_gmail(
-        account="dalton",
-        query="newer_than:7d",
-        max_results=cfg.gmail.max_results_per_account,
-        label_id=cfg.gmail.kid_school_label_id,
-    )
-
-    # Todoist read-only lists
-    meals_lib = fetch_todoist_project(project_id=cfg.todoist.project_id("meals"))
-    date_night = fetch_todoist_project(project_id=cfg.todoist.project_id("date_night_ideas"))
-    screen_time = fetch_todoist_project(project_id=cfg.todoist.project_id("screen_time"))
-    deadlines = fetch_todoist_deadlines(window_days=14, today=today)
+    general = fut_general.result()
+    horizon = fut_horizon.result()
+    meals_last = fut_meals_last.result()
+    personal = fut_personal.result()
+    school: list[Event] = [e for fut in fut_schools for e in fut.result()]
+    dalton_msgs, dalton_cap = fut_dalton.result()
+    maggie_msgs, maggie_cap = fut_maggie.result()
+    kid_school_msgs, kid_cap = fut_kid_school.result()
+    meals_lib = fut_meals_lib.result()
+    date_night = fut_date_night.result()
+    screen_time = fut_screen_time.result()
+    deadlines = fut_deadlines.result()
 
     return Context(
         week_start=week_start,
         week_end=week_end,
         horizon_end=horizon_end,
-        general_events=general_all,
+        general_events=general + horizon,
         meal_events_last=meals_last,
         personal_events=personal,
         school_events=school,
