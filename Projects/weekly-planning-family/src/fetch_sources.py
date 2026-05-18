@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import json
 import subprocess
+import urllib.parse
+import urllib.request
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from pathlib import Path
@@ -190,3 +192,80 @@ def fetch_gmail(
         for m in items
     ]
     return messages, hit_cap
+
+
+def _todoist_token() -> str:
+    """Read Todoist API token from macOS Keychain. Tests should monkeypatch this."""
+    result = subprocess.run(
+        ["security", "find-generic-password", "-s", "TODOIST_API_TOKEN", "-w"],
+        capture_output=True, text=True, check=True,
+    )
+    return result.stdout.strip()
+
+
+def _todoist_get(path: str, params: dict | None = None) -> Any:
+    """GET against Todoist API v1. Returns parsed JSON (list or dict).
+
+    Tests should monkeypatch this directly to return canned fixtures.
+    """
+    token = _todoist_token()
+    url = f"https://api.todoist.com/api/v1{path}"
+    if params:
+        url += "?" + urllib.parse.urlencode(params)
+    req = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}"})
+    with urllib.request.urlopen(req) as resp:
+        data = json.loads(resp.read().decode())
+    # API may wrap in {"results": [...]} or return a list directly
+    if isinstance(data, dict) and "results" in data:
+        return data["results"]
+    return data
+
+
+def fetch_todoist_project(*, project_id: str) -> list[Task]:
+    """List all active tasks in a Todoist project."""
+    raw = _todoist_get("/tasks", {"project_id": project_id})
+    return [
+        Task(
+            id=t["id"],
+            content=t.get("content", ""),
+            description=t.get("description", ""),
+            deadline=(t.get("deadline") or {}).get("date", "") if isinstance(t.get("deadline"), dict) else (t.get("deadline") or ""),
+            project_id=t.get("project_id", project_id),
+        )
+        for t in raw
+    ]
+
+
+def fetch_todoist_deadlines(*, window_days: int, today: date | None = None) -> list[Task]:
+    """Tasks with a `deadline` falling within `window_days` of `today`.
+
+    Pulls all tasks (no project filter), filters locally. Token-light alternative
+    to the project-by-project scan.
+    """
+    if today is None:
+        today = date.today()
+    window_end = today + timedelta(days=window_days)
+    raw = _todoist_get("/tasks")
+    out: list[Task] = []
+    for t in raw:
+        dl_raw = t.get("deadline")
+        dl_str = ""
+        if isinstance(dl_raw, dict):
+            dl_str = dl_raw.get("date", "")
+        elif isinstance(dl_raw, str):
+            dl_str = dl_raw
+        if not dl_str:
+            continue
+        try:
+            dl_date = date.fromisoformat(dl_str)
+        except ValueError:
+            continue
+        if today <= dl_date <= window_end:
+            out.append(Task(
+                id=t["id"],
+                content=t.get("content", ""),
+                description=t.get("description", ""),
+                deadline=dl_str,
+                project_id=t.get("project_id", ""),
+            ))
+    return out

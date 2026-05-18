@@ -6,10 +6,13 @@ from unittest.mock import patch
 from src.fetch_sources import (
     Event,
     Message,
+    Task,
     _run_skill,
     compute_week_window,
     fetch_calendar_range,
     fetch_gmail,
+    fetch_todoist_deadlines,
+    fetch_todoist_project,
 )
 
 
@@ -144,3 +147,34 @@ def test_fetch_gmail_with_label_id_uses_label_query(load_fixture):
     query_idx = called_args.index("--query") + 1
     full_query = called_args[query_idx]
     assert "label:Label_1234567890123456789" in full_query or "Label_1234567890123456789" in full_query
+
+
+def test_fetch_todoist_project_returns_tasks(load_fixture):
+    fixture = load_fixture("todoist_meals.json")
+    # The helper calls Todoist API; we patch the low-level HTTP call
+    with patch("src.fetch_sources._todoist_get", return_value=fixture):
+        tasks = fetch_todoist_project(project_id="1115")
+    assert len(tasks) == 3
+    assert tasks[0].id == "m1"
+    assert tasks[0].content == "Sheet pan chicken thighs"
+    assert "thighs" in tasks[0].description
+
+
+def test_fetch_todoist_deadlines_within_window(load_fixture):
+    fixture = load_fixture("todoist_deadlines.json")
+    with patch("src.fetch_sources._todoist_get", return_value=fixture):
+        tasks = fetch_todoist_deadlines(window_days=14, today=date(2026, 5, 17))
+    # Both deadlines are within 14 days of 2026-05-17 (May 25 and May 30)
+    assert len(tasks) == 2
+    assert all(t.deadline for t in tasks)
+
+
+def test_fetch_todoist_deadlines_excludes_far_future():
+    fixture = [
+        {"id": "x", "content": "Far future", "deadline": "2027-01-01", "project_id": "1113"},
+        {"id": "y", "content": "Soon", "deadline": "2026-05-20", "project_id": "1113"},
+    ]
+    with patch("src.fetch_sources._todoist_get", return_value=fixture):
+        tasks = fetch_todoist_deadlines(window_days=14, today=date(2026, 5, 17))
+    assert len(tasks) == 1
+    assert tasks[0].id == "y"
