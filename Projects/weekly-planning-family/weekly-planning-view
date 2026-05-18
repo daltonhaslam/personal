@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# Open the most recent weekly planning session summary in Chrome.
+# Usage:
+#   weekly-planning-view                # opens most recent
+#   weekly-planning-view --list         # lists all archived sessions
+#   weekly-planning-view --date 2026-05-17    # opens session for that week_start
+
+set -euo pipefail
+
+SESSIONS_DIR="/Users/daltonhaslam/Documents/Claude/Personal/Projects/weekly-planning-family/sessions"
+
+if [[ ! -d "$SESSIONS_DIR" ]]; then
+    echo "No sessions yet — run /weekly-planning in Claude Code to create one." >&2
+    exit 1
+fi
+
+case "${1:-}" in
+    --list)
+        ls -1 "$SESSIONS_DIR" 2>/dev/null | sort -r
+        exit 0
+        ;;
+    --date)
+        if [[ -z "${2:-}" ]]; then
+            echo "Usage: weekly-planning-view --date YYYY-MM-DD" >&2
+            exit 1
+        fi
+        FILE="$SESSIONS_DIR/$2-session.html"
+        if [[ ! -f "$FILE" ]]; then
+            echo "No session found for $2" >&2
+            exit 1
+        fi
+        open -a "Google Chrome" "$FILE"
+        ;;
+    "")
+        # Most recent
+        LATEST=$(ls -1 "$SESSIONS_DIR" 2>/dev/null | sort -r | head -1)
+        if [[ -z "$LATEST" ]]; then
+            echo "No sessions found." >&2
+            exit 1
+        fi
+        open -a "Google Chrome" "$SESSIONS_DIR/$LATEST"
+        ;;
+    *)
+        echo "Usage: weekly-planning-view [--list | --date YYYY-MM-DD]" >&2
+        exit 1
+        ;;
+esac
