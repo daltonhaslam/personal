@@ -1,7 +1,9 @@
 import json
 import subprocess
+from datetime import date
 from unittest.mock import patch
-from src.fetch_sources import _run_skill
+
+from src.fetch_sources import _run_skill, compute_week_window
 
 
 def test_run_skill_parses_json_stdout():
@@ -16,10 +18,6 @@ def test_run_skill_parses_json_stdout():
     mock_run.assert_called_once()
     called_args = mock_run.call_args[0][0]
     assert called_args == ["/fake/path", "--arg", "v"]
-
-
-from datetime import date
-from src.fetch_sources import compute_week_window
 
 
 def test_week_window_from_thursday():
