@@ -76,8 +76,6 @@ WEEKLY_PLANNING_CFM_TITLE="$(cat cfm_title.txt)" python -m src.render_page
 
 Expected: prints `session.html written: ...` and the file exists.
 
-> **Note:** `render_page.py` reads `WEEKLY_PLANNING_CFM_TITLE` from env when present, falling back to its default placeholder. If your local copy doesn't read that env var yet, update `main()` in `src/render_page.py` to do so — it's a 2-line change.
-
 ---
 
 ## Step 6 — Start the form server in the background and open Chrome

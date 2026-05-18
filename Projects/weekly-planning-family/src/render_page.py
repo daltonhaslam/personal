@@ -4,23 +4,10 @@ from __future__ import annotations
 import json
 import os
 from datetime import datetime, timedelta
-from pathlib import Path
-
-from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from src.constants import PROJECT_ROOT
 from src.fetch_sources import Context, Event
-
-# Resolve templates relative to this file so it works both in-worktree and
-# at the production path without needing the constants.TEMPLATES_DIR value.
-_TEMPLATES_DIR = Path(__file__).parent.parent / "templates"
-
-
-def _env() -> Environment:
-    return Environment(
-        loader=FileSystemLoader(_TEMPLATES_DIR),
-        autoescape=select_autoescape(["html", "jinja"]),
-    )
+from src.jinja_env import make_env
 
 
 def _week_days(ctx: Context) -> list[dict]:
@@ -77,7 +64,7 @@ def render(
     cfm_lesson_title: str,
 ) -> str:
     """Render the form HTML."""
-    env = _env()
+    env = make_env()
     template = env.get_template("session.html.jinja")
     return template.render(
         ctx=ctx,
@@ -103,8 +90,7 @@ def main() -> None:
 
     ctx = Context.from_dict(ctx_dict)
 
-    # CFM lesson title — passed via env var by SKILL.md
-    cfm_title = os.environ.get("WEEKLY_PLANNING_CFM_TITLE", "this week's lesson")
+    cfm_title = os.environ.get("WEEKLY_PLANNING_CFM_TITLE", "this week's lesson").strip()
 
     html = render(
         ctx=ctx,
