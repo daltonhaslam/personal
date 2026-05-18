@@ -3,11 +3,13 @@ import subprocess
 from datetime import date
 from unittest.mock import patch
 
+from src.config import load_config
 from src.fetch_sources import (
     Event,
     Message,
     Task,
     _run_skill,
+    assemble_context,
     compute_week_window,
     fetch_calendar_range,
     fetch_gmail,
@@ -178,3 +180,90 @@ def test_fetch_todoist_deadlines_excludes_far_future():
         tasks = fetch_todoist_deadlines(window_days=14, today=date(2026, 5, 17))
     assert len(tasks) == 1
     assert tasks[0].id == "y"
+
+
+def test_assemble_context_uses_config_and_populates_fields(fixtures_dir, load_fixture):
+    cfg = load_config(fixtures_dir / "config_valid.yaml")
+
+    gcal_general = load_fixture("gcal_general_events.json")
+    gcal_meals = load_fixture("gcal_meal_events.json")
+    gcal_school = load_fixture("gcal_school_events.json")
+    gmail_d = load_fixture("gmail_dalton.json")
+    gmail_m = load_fixture("gmail_maggie.json")
+    gmail_ks = load_fixture("gmail_kid_school.json")
+    todoist_meals = load_fixture("todoist_meals.json")
+    todoist_dn = load_fixture("todoist_date_night.json")
+    todoist_st = load_fixture("todoist_screen_time.json")
+    todoist_deadlines = load_fixture("todoist_deadlines.json")
+
+    skill_responses = {
+        "gcal-general": gcal_general,
+        "gcal-meals": gcal_meals,
+        "gcal-school": gcal_school,
+        "gcal-personal": [],
+        "gmail-dalton": gmail_d,
+        "gmail-maggie": gmail_m,
+        "gmail-kid_school": gmail_ks,
+    }
+
+    def fake_run_skill(path, args):
+        path = str(path)
+        if "list-events.sh" in path:
+            cal_id = args[args.index("--calendar-id") + 1]
+            if cal_id == cfg.calendars.shared_general:
+                return skill_responses["gcal-general"]
+            elif cal_id == cfg.calendars.shared_meals:
+                return skill_responses["gcal-meals"]
+            elif cal_id == cfg.calendars.dalton_personal:
+                return skill_responses["gcal-personal"]
+            else:
+                return skill_responses["gcal-school"]
+        if "search-emails.sh" in path:
+            account = args[args.index("--account") + 1]
+            query = args[args.index("--query") + 1]
+            if "label:" in query or cfg.gmail.kid_school_label_id in query:
+                return skill_responses["gmail-kid_school"]
+            return skill_responses[f"gmail-{account}"]
+        return []
+
+    def fake_todoist_get(path, params=None):
+        if params and "project_id" in params:
+            pid = params["project_id"]
+            if pid == cfg.todoist.project_id("meals"):
+                return todoist_meals
+            if pid == cfg.todoist.project_id("date_night_ideas"):
+                return todoist_dn
+            if pid == cfg.todoist.project_id("screen_time"):
+                return todoist_st
+            return []
+        # No params = full /tasks call = deadline lookup
+        return todoist_deadlines
+
+    with patch("src.fetch_sources._run_skill", side_effect=fake_run_skill), \
+         patch("src.fetch_sources._todoist_get", side_effect=fake_todoist_get):
+        ctx = assemble_context(cfg, today=date(2026, 5, 21))  # Thursday
+
+    assert ctx.week_start == date(2026, 5, 22)
+    assert ctx.week_end == date(2026, 5, 28)
+    assert len(ctx.general_events) > 0
+    assert len(ctx.meal_events_last) > 0
+    assert len(ctx.school_events) > 0
+    assert len(ctx.dalton_gmail) == 2
+    assert len(ctx.maggie_gmail) == 1
+    assert len(ctx.kid_school_emails) == 2
+    assert len(ctx.meals_library) == 3
+    assert len(ctx.date_night_ideas) == 3
+    assert len(ctx.screen_time_ideas) == 3
+    assert len(ctx.upcoming_deadlines) == 2
+    assert ctx.inbox_volume_flag is False
+
+
+def test_context_to_dict_is_json_safe(fixtures_dir):
+    cfg = load_config(fixtures_dir / "config_valid.yaml")
+    with patch("src.fetch_sources._run_skill", return_value=[]), \
+         patch("src.fetch_sources._todoist_get", return_value=[]):
+        ctx = assemble_context(cfg, today=date(2026, 5, 21))
+    d = ctx.to_dict()
+    json.dumps(d)  # would raise if not serializable
+    assert d["week_start"] == "2026-05-22"
+    assert d["inbox_volume_flag"] is False

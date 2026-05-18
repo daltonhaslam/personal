@@ -15,7 +15,8 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from src.constants import GCAL_FETCH, GMAIL_SEARCH
+from src.config import Config, load_config
+from src.constants import CONFIG_PATH, GCAL_FETCH, GMAIL_SEARCH, PROJECT_ROOT
 
 
 @dataclass
@@ -269,3 +270,115 @@ def fetch_todoist_deadlines(*, window_days: int, today: date | None = None) -> l
                 project_id=t.get("project_id", ""),
             ))
     return out
+
+
+def assemble_context(cfg: Config, *, today: date | None = None) -> Context:
+    """Pull every source defined in config and return a populated Context."""
+    week_start, week_end, horizon_end = compute_week_window(today)
+
+    # Calendars: next 7d for week-at-a-glance
+    general = fetch_calendar_range(
+        calendar_id=cfg.calendars.shared_general,
+        start=week_start, end=week_end,
+        source_tag="general",
+        exclude_recurring=True,
+    )
+    # Horizon (next 2-4 weeks) — append more general events
+    horizon = fetch_calendar_range(
+        calendar_id=cfg.calendars.shared_general,
+        start=week_end + timedelta(days=1), end=horizon_end,
+        source_tag="general-horizon",
+        exclude_recurring=True,
+    )
+    general_all = general + horizon
+
+    # Meal calendar: LAST 7 days for retrospective
+    meals_last = fetch_calendar_range(
+        calendar_id=cfg.calendars.shared_meals,
+        start=week_start - timedelta(days=7),
+        end=week_start - timedelta(days=1),
+        source_tag="meals",
+    )
+
+    # Personal: next 7d
+    personal = fetch_calendar_range(
+        calendar_id=cfg.calendars.dalton_personal,
+        start=week_start, end=week_end,
+        source_tag="personal",
+        exclude_recurring=True,
+    )
+
+    # School calendars (merged)
+    school: list[Event] = []
+    for sc in cfg.calendars.schools:
+        school.extend(fetch_calendar_range(
+            calendar_id=sc.id,
+            start=week_start, end=week_end,
+            source_tag=f"school:{sc.name}",
+        ))
+
+    # Gmail: per account, plus the Kid's School label
+    dalton_msgs, dalton_cap = fetch_gmail(
+        account="dalton",
+        query=cfg.gmail.default_query,
+        max_results=cfg.gmail.max_results_per_account,
+    )
+    maggie_msgs, maggie_cap = fetch_gmail(
+        account="maggie",
+        query=cfg.gmail.default_query,
+        max_results=cfg.gmail.max_results_per_account,
+    )
+    kid_school_msgs, kid_cap = fetch_gmail(
+        account="dalton",
+        query="newer_than:7d",
+        max_results=cfg.gmail.max_results_per_account,
+        label_id=cfg.gmail.kid_school_label_id,
+    )
+
+    # Todoist read-only lists
+    meals_lib = fetch_todoist_project(project_id=cfg.todoist.project_id("meals"))
+    date_night = fetch_todoist_project(project_id=cfg.todoist.project_id("date_night_ideas"))
+    screen_time = fetch_todoist_project(project_id=cfg.todoist.project_id("screen_time"))
+    deadlines = fetch_todoist_deadlines(window_days=14, today=today)
+
+    return Context(
+        week_start=week_start,
+        week_end=week_end,
+        horizon_end=horizon_end,
+        general_events=general_all,
+        meal_events_last=meals_last,
+        personal_events=personal,
+        school_events=school,
+        dalton_gmail=dalton_msgs,
+        maggie_gmail=maggie_msgs,
+        kid_school_emails=kid_school_msgs,
+        meals_library=meals_lib,
+        date_night_ideas=date_night,
+        screen_time_ideas=screen_time,
+        upcoming_deadlines=deadlines,
+        inbox_volume_flag=any([dalton_cap, maggie_cap, kid_cap]),
+    )
+
+
+def main() -> None:
+    """CLI entry: assemble context, write to context.json at project root."""
+    cfg = load_config(CONFIG_PATH)
+    ctx = assemble_context(cfg)
+    out = PROJECT_ROOT / "context.json"
+    with open(out, "w") as f:
+        json.dump(ctx.to_dict(), f, indent=2)
+    print(f"context.json written: {out}")
+    print(f"  general events: {len(ctx.general_events)}")
+    print(f"  meal events (last 7d): {len(ctx.meal_events_last)}")
+    print(f"  school events: {len(ctx.school_events)}")
+    print(f"  dalton gmail: {len(ctx.dalton_gmail)} (cap hit: {any([ctx.inbox_volume_flag])})")
+    print(f"  maggie gmail: {len(ctx.maggie_gmail)}")
+    print(f"  kid_school emails: {len(ctx.kid_school_emails)}")
+    print(f"  meals library: {len(ctx.meals_library)}")
+    print(f"  date night ideas: {len(ctx.date_night_ideas)}")
+    print(f"  screen time ideas: {len(ctx.screen_time_ideas)}")
+    print(f"  upcoming deadlines: {len(ctx.upcoming_deadlines)}")
+
+
+if __name__ == "__main__":
+    main()
