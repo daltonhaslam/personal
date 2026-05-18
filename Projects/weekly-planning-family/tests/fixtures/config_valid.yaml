@@ -1,3 +1,7 @@
+# Keep Todoist project roles, gmail account names, and schema shape in sync
+# with Projects/weekly-planning-family/config.example.yaml. This fixture
+# exercises the loader's happy path; the example file documents the schema
+# for real users.
 session:
   default_day: thursday
   default_time: "20:00"

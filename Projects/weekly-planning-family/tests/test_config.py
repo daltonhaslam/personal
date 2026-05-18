@@ -14,6 +14,23 @@ def test_load_valid_config(fixtures_dir):
     assert cfg.todoist.projects["shopping"].id == "1111"
     assert cfg.todoist.collaborator_ids["dalton"] == "9001"
     assert cfg.session.server_port == 8000
+    assert cfg.session.default_day == "thursday"
+    assert cfg.calendars.schools[0].name == "Elementary"
+    assert cfg.family.kids[0].name == "TestKid1"
+    assert cfg.family.kids[1].age == 3
+
+
+def test_indexed_error_path_for_list_items(fixtures_dir, tmp_path):
+    bad = tmp_path / "bad.yaml"
+    bad.write_text(
+        (fixtures_dir / "config_valid.yaml").read_text().replace(
+            "    - name: TestKid2\n      age: 3",
+            "    - name: TestKid2",  # age missing on kid index 1
+        )
+    )
+    with pytest.raises(ConfigError) as exc:
+        load_config(bad)
+    assert "family.kids[1]" in str(exc.value)
 
 
 def test_missing_calendar_raises(fixtures_dir):

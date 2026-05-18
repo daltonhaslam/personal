@@ -122,18 +122,18 @@ def load_config(path: Path) -> Config:
         shared_meals=_require(c, "shared_meals", "calendars"),
         dalton_personal=_require(c, "dalton_personal", "calendars"),
         schools=[
-            SchoolCalendar(id=_require(sc, "id", "calendars.schools[]"),
-                           name=_require(sc, "name", "calendars.schools[]"))
-            for sc in c.get("schools", [])
+            SchoolCalendar(id=_require(sc, "id", f"calendars.schools[{i}]"),
+                           name=_require(sc, "name", f"calendars.schools[{i}]"))
+            for i, sc in enumerate(c.get("schools", []))
         ],
     )
 
     g = _require(raw, "gmail", "config")
     gmail = GmailConfig(
         accounts=[
-            GmailAccount(name=_require(a, "name", "gmail.accounts[]"),
-                         address=_require(a, "address", "gmail.accounts[]"))
-            for a in _require(g, "accounts", "gmail")
+            GmailAccount(name=_require(a, "name", f"gmail.accounts[{i}]"),
+                         address=_require(a, "address", f"gmail.accounts[{i}]"))
+            for i, a in enumerate(_require(g, "accounts", "gmail"))
         ],
         kid_school_label_id=_require(g, "kid_school_label_id", "gmail"),
         default_query=_require(g, "default_query", "gmail"),
@@ -158,8 +158,8 @@ def load_config(path: Path) -> Config:
     family = FamilyConfig(
         owners=list(_require(f_raw, "owners", "family")),
         kids=[
-            Kid(name=_require(k, "name", "family.kids[]"), age=int(_require(k, "age", "family.kids[]")))
-            for k in f_raw.get("kids", [])
+            Kid(name=_require(k, "name", f"family.kids[{i}]"), age=int(_require(k, "age", f"family.kids[{i}]")))
+            for i, k in enumerate(f_raw.get("kids", []))
         ],
     )
 
