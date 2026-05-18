@@ -1,9 +1,9 @@
 """Load and validate config.yaml. Single source of truth for runtime settings."""
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
+from typing import Any
 
 import yaml
 
@@ -93,7 +93,7 @@ class Config:
     family: FamilyConfig
 
 
-def _require(d: dict, key: str, path: str) -> any:
+def _require(d: dict, key: str, path: str) -> Any:
     if key not in d:
         raise ConfigError(f"Missing required field: {path}.{key}")
     return d[key]
@@ -107,7 +107,7 @@ def load_config(path: Path) -> Config:
     if not isinstance(raw, dict):
         raise ConfigError(f"Config root must be a mapping, got {type(raw).__name__}")
 
-    s = _require(raw, "session", "")
+    s = _require(raw, "session", "config")
     session = SessionConfig(
         default_day=_require(s, "default_day", "session"),
         default_time=_require(s, "default_time", "session"),
@@ -116,7 +116,7 @@ def load_config(path: Path) -> Config:
         server_abandon_timeout_hours=int(_require(s, "server_abandon_timeout_hours", "session")),
     )
 
-    c = _require(raw, "calendars", "")
+    c = _require(raw, "calendars", "config")
     calendars = CalendarsConfig(
         shared_general=_require(c, "shared_general", "calendars"),
         shared_meals=_require(c, "shared_meals", "calendars"),
@@ -128,7 +128,7 @@ def load_config(path: Path) -> Config:
         ],
     )
 
-    g = _require(raw, "gmail", "")
+    g = _require(raw, "gmail", "config")
     gmail = GmailConfig(
         accounts=[
             GmailAccount(name=_require(a, "name", "gmail.accounts[]"),
@@ -140,7 +140,7 @@ def load_config(path: Path) -> Config:
         max_results_per_account=int(_require(g, "max_results_per_account", "gmail")),
     )
 
-    t = _require(raw, "todoist", "")
+    t = _require(raw, "todoist", "config")
     projects_raw = _require(t, "projects", "todoist")
     projects = {
         role: TodoistProject(
@@ -154,7 +154,7 @@ def load_config(path: Path) -> Config:
         collaborator_ids={k: str(v) for k, v in _require(t, "collaborator_ids", "todoist").items()},
     )
 
-    f_raw = _require(raw, "family", "")
+    f_raw = _require(raw, "family", "config")
     family = FamilyConfig(
         owners=list(_require(f_raw, "owners", "family")),
         kids=[
