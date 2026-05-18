@@ -94,6 +94,9 @@ def _run_skill(skill_path: str | Path, args: list[str]) -> Any:
     return json.loads(result.stdout)
 
 
+from src.constants import GCAL_FETCH
+
+
 def compute_week_window(today: date | None = None) -> tuple[date, date, date]:
     """Return (week_start, week_end, horizon_end).
 
@@ -109,3 +112,36 @@ def compute_week_window(today: date | None = None) -> tuple[date, date, date]:
     week_end = week_start + timedelta(days=6)
     horizon_end = week_end + timedelta(days=21)
     return week_start, week_end, horizon_end
+
+
+def fetch_calendar_range(
+    *,
+    calendar_id: str,
+    start: date,
+    end: date,
+    source_tag: str,
+    exclude_recurring: bool = False,
+) -> list[Event]:
+    """Fetch events from a single calendar across an inclusive date range.
+
+    Calls the gcal-fetch skill once per day in the range, merges, tags each
+    event with `source_tag`.
+    """
+    events: list[Event] = []
+    cur = start
+    while cur <= end:
+        args = ["--calendar-id", calendar_id, "--date", cur.isoformat()]
+        if exclude_recurring:
+            args.append("--exclude-recurring")
+        raw = _run_skill(GCAL_FETCH, args)
+        for e in raw:
+            events.append(Event(
+                title=e.get("title", "(no title)"),
+                date=cur.isoformat(),
+                start=e.get("start", ""),
+                end=e.get("end", ""),
+                location=e.get("location", ""),
+                source=source_tag,
+            ))
+        cur += timedelta(days=1)
+    return events
