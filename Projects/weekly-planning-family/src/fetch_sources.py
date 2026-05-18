@@ -13,7 +13,7 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from src.constants import GCAL_FETCH
+from src.constants import GCAL_FETCH, GMAIL_SEARCH
 
 
 @dataclass
@@ -144,3 +144,49 @@ def fetch_calendar_range(
             ))
         cur += timedelta(days=1)
     return events
+
+
+def fetch_gmail(
+    *,
+    account: str,
+    query: str,
+    max_results: int,
+    label_id: str | None = None,
+) -> tuple[list[Message], bool]:
+    """Fetch Gmail messages for an account.
+
+    Returns (messages, hit_volume_cap).
+    `hit_volume_cap` is True if the skill returned >= max_results items
+    (likely truncation in the actual inbox).
+
+    `label_id`, when provided, is appended to `query` as `label:<id>`.
+    Returned Messages are tagged with account="kid_school" when label_id is set,
+    otherwise with the account name.
+    """
+    full_query = query
+    if label_id:
+        full_query = f"{query} label:{label_id}".strip()
+
+    args = [
+        "--account", account,
+        "--query", full_query,
+        "--max-results", str(max_results),
+    ]
+    raw = _run_skill(GMAIL_SEARCH, args)
+
+    hit_cap = len(raw) >= max_results
+    items = raw[:max_results]
+
+    tag = "kid_school" if label_id else account
+    messages = [
+        Message(
+            id=m.get("id", ""),
+            subject=m.get("subject", "(no subject)"),
+            sender=m.get("from", ""),
+            snippet=m.get("snippet", ""),
+            date=m.get("date", ""),
+            account=tag,
+        )
+        for m in items
+    ]
+    return messages, hit_cap

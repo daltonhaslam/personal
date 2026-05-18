@@ -3,7 +3,14 @@ import subprocess
 from datetime import date
 from unittest.mock import patch
 
-from src.fetch_sources import Event, _run_skill, compute_week_window, fetch_calendar_range
+from src.fetch_sources import (
+    Event,
+    Message,
+    _run_skill,
+    compute_week_window,
+    fetch_calendar_range,
+    fetch_gmail,
+)
 
 
 def test_run_skill_parses_json_stdout():
@@ -81,3 +88,59 @@ def test_fetch_calendar_range_passes_exclude_recurring_flag():
     # one call (one-day range), with the flag in args
     called_args = mock.call_args[0][1]
     assert "--exclude-recurring" in called_args
+
+
+def test_fetch_gmail_basic(load_fixture):
+    fixture = load_fixture("gmail_dalton.json")
+    with patch("src.fetch_sources._run_skill", return_value=fixture) as mock:
+        msgs, hit_cap = fetch_gmail(
+            account="dalton",
+            query="newer_than:7d -category:promotions",
+            max_results=50,
+            label_id=None,
+        )
+    assert len(msgs) == 2
+    assert hit_cap is False
+    assert msgs[0].id == "abc1"
+    assert msgs[0].subject == "Appt reminder"
+    assert msgs[0].account == "dalton"
+    called_args = mock.call_args[0][1]
+    assert "--account" in called_args
+    assert "dalton" in called_args
+    assert "--query" in called_args
+    assert "--max-results" in called_args
+    assert "50" in called_args
+
+
+def test_fetch_gmail_hits_volume_cap(load_fixture):
+    # fixture has 60 items but we ask for 50; skill returns all 60 (it doesn't truncate),
+    # so the helper takes 50 and flags cap-hit
+    fixture = load_fixture("gmail_volume_cap.json")
+    with patch("src.fetch_sources._run_skill", return_value=fixture):
+        msgs, hit_cap = fetch_gmail(
+            account="dalton",
+            query="x",
+            max_results=50,
+            label_id=None,
+        )
+    assert len(msgs) == 50
+    assert hit_cap is True
+
+
+def test_fetch_gmail_with_label_id_uses_label_query(load_fixture):
+    fixture = load_fixture("gmail_kid_school.json")
+    with patch("src.fetch_sources._run_skill", return_value=fixture) as mock:
+        msgs, hit_cap = fetch_gmail(
+            account="dalton",
+            query="newer_than:7d",
+            max_results=50,
+            label_id="Label_1234567890123456789",
+        )
+    assert len(msgs) == 2
+    assert msgs[0].account == "kid_school"  # tagged by helper since label_id was set
+    called_args = mock.call_args[0][1]
+    # Confirm the label was included by chaining onto the query
+    # (we use Gmail's label: search syntax; the label ID must appear in the --query arg)
+    query_idx = called_args.index("--query") + 1
+    full_query = called_args[query_idx]
+    assert "label:Label_1234567890123456789" in full_query or "Label_1234567890123456789" in full_query
