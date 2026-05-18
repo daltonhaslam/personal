@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -102,8 +103,8 @@ def main() -> None:
 
     ctx = Context.from_dict(ctx_dict)
 
-    # CFM lesson title — placeholder; resolved in Stage 6 SKILL.md task.
-    cfm_title = "this week's lesson"
+    # CFM lesson title — passed via env var by SKILL.md
+    cfm_title = os.environ.get("WEEKLY_PLANNING_CFM_TITLE", "this week's lesson")
 
     html = render(
         ctx=ctx,
