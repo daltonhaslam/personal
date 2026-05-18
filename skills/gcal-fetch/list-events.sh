@@ -79,8 +79,10 @@ for e in items:
     end_raw   = e.get("end", {})
 
     if "dateTime" in start_raw:
-        start = datetime.fromisoformat(start_raw["dateTime"]).strftime("%-I:%M %p")
-        end   = datetime.fromisoformat(end_raw["dateTime"]).strftime("%-I:%M %p")
+        # Google returns RFC3339 (e.g. "2026-05-27T22:00:00Z"); Python 3.9
+        # fromisoformat() rejects the Z suffix. Normalize, then render local time.
+        start = datetime.fromisoformat(start_raw["dateTime"].replace("Z", "+00:00")).astimezone().strftime("%-I:%M %p")
+        end   = datetime.fromisoformat(end_raw["dateTime"].replace("Z", "+00:00")).astimezone().strftime("%-I:%M %p")
     else:
         start = "all-day"
         end   = "all-day"
