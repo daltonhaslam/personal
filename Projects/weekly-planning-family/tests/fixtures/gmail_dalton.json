@@ -1,0 +1,4 @@
+[
+  {"id": "abc1", "threadId": "t1", "snippet": "Reminder: dentist appt", "subject": "Appt reminder", "from": "Dentist <office@example.com>", "date": "Wed, 14 May 2026 09:00:00 -0400"},
+  {"id": "abc2", "threadId": "t2", "snippet": "Your subscription will renew", "subject": "Renewal notice", "from": "billing@svc.com", "date": "Thu, 15 May 2026 10:00:00 -0400"}
+]
