@@ -25,6 +25,8 @@ gmail:
   max_results_per_account: 50
 
 todoist:
+  # name fields are for human readability only; code matches by id.
+  # If you rename a project in Todoist, only the id stays stable.
   projects:
     shopping:
       name: "To buy"

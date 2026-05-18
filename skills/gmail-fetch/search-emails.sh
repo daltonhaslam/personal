@@ -8,7 +8,6 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 QUERY=""
 MAX_RESULTS=40
-
 ACCOUNT="dalton"
 
 while [[ $# -gt 0 ]]; do

@@ -40,8 +40,8 @@ CLIENT_SECRET=$(security find-generic-password -s GMAIL_CLIENT_SECRET -w 2>/dev/
     exit 1
 }
 
-RESPONSE=$(REFRESH_TOKEN="$REFRESH_TOKEN" CLIENT_ID="$CLIENT_ID" CLIENT_SECRET="$CLIENT_SECRET" python3 << 'PYEOF'
-import json, os, urllib.request, urllib.parse
+RESULT=$(REFRESH_TOKEN="$REFRESH_TOKEN" CLIENT_ID="$CLIENT_ID" CLIENT_SECRET="$CLIENT_SECRET" python3 << 'PYEOF'
+import json, os, sys, urllib.request, urllib.parse
 
 data = urllib.parse.urlencode({
     "grant_type": "refresh_token",
@@ -50,26 +50,32 @@ data = urllib.parse.urlencode({
     "client_secret": os.environ["CLIENT_SECRET"],
 }).encode()
 
-req = urllib.request.Request("https://oauth2.googleapis.com/token", data=data, method="POST")
-with urllib.request.urlopen(req) as resp:
-    print(resp.read().decode())
+try:
+    req = urllib.request.Request("https://oauth2.googleapis.com/token", data=data, method="POST")
+    with urllib.request.urlopen(req) as resp:
+        body = resp.read().decode()
+except Exception as e:
+    print(f"ERR\trequest failed: {e}")
+    sys.exit(0)
+
+try:
+    payload = json.loads(body)
+except ValueError:
+    print(f"ERR\tnon-JSON response: {body[:200]}")
+    sys.exit(0)
+
+token = payload.get("access_token")
+if not token:
+    err = payload.get("error_description") or payload.get("error") or "unknown"
+    print(f"ERR\tno access_token: {err}")
+    sys.exit(0)
+
+print(f"OK\t{token}")
 PYEOF
-) || {
-    echo "Error: token refresh request failed" >&2
-    exit 1
-}
+)
 
-if ! echo "$RESPONSE" | python3 -c "import json,sys; json.load(sys.stdin)" 2>/dev/null; then
-    echo "Error: token endpoint returned non-JSON: ${RESPONSE:0:200}" >&2
-    exit 1
-fi
-
-ACCESS_TOKEN=$(echo "$RESPONSE" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('access_token',''))")
-
-if [[ -z "$ACCESS_TOKEN" ]]; then
-    ERROR=$(echo "$RESPONSE" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('error_description', d.get('error', 'unknown')))" 2>/dev/null || echo "unknown")
-    echo "Error: no access_token in response: $ERROR" >&2
-    exit 1
-fi
-
-echo "$ACCESS_TOKEN"
+case "$RESULT" in
+    OK$'\t'*)  echo "${RESULT#OK$'\t'}" ;;
+    ERR$'\t'*) echo "Error: ${RESULT#ERR$'\t'}" >&2; exit 1 ;;
+    *)         echo "Error: unexpected token-helper output" >&2; exit 1 ;;
+esac

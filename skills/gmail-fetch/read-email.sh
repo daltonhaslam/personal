@@ -8,7 +8,6 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MESSAGE_ID=""
 DEPTH="full"
-
 ACCOUNT="dalton"
 
 while [[ $# -gt 0 ]]; do
