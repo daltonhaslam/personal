@@ -205,21 +205,34 @@ def _todoist_token() -> str:
 
 
 def _todoist_get(path: str, params: dict | None = None) -> Any:
-    """GET against Todoist API v1. Returns parsed JSON (list or dict).
+    """GET against Todoist API v1. Returns parsed JSON.
+
+    Auto-paginates endpoints that return ``{"results": [...], "next_cursor": str}``
+    (Todoist's default page size is 50; without pagination this would silently
+    truncate any project with >50 active tasks). For non-paginated endpoints,
+    returns the response as-is.
 
     Tests should monkeypatch this directly to return canned fixtures.
     """
     token = _todoist_token()
-    url = f"https://api.todoist.com/api/v1{path}"
-    if params:
-        url += "?" + urllib.parse.urlencode(params)
-    req = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}"})
-    with urllib.request.urlopen(req) as resp:
-        data = json.loads(resp.read().decode())
-    # API may wrap in {"results": [...]} or return a list directly
-    if isinstance(data, dict) and "results" in data:
-        return data["results"]
-    return data
+    base = f"https://api.todoist.com/api/v1{path}"
+    accumulated: list = []
+    cursor: str | None = None
+    while True:
+        q = dict(params or {})
+        if cursor:
+            q["cursor"] = cursor
+        url = base + (("?" + urllib.parse.urlencode(q)) if q else "")
+        req = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}"})
+        with urllib.request.urlopen(req) as resp:
+            data = json.loads(resp.read().decode())
+        if isinstance(data, dict) and "results" in data:
+            accumulated.extend(data["results"])
+            cursor = data.get("next_cursor")
+            if not cursor:
+                return accumulated
+            continue
+        return data
 
 
 def fetch_todoist_project(*, project_id: str) -> list[Task]:
@@ -371,13 +384,15 @@ def main() -> None:
     print(f"  general events: {len(ctx.general_events)}")
     print(f"  meal events (last 7d): {len(ctx.meal_events_last)}")
     print(f"  school events: {len(ctx.school_events)}")
-    print(f"  dalton gmail: {len(ctx.dalton_gmail)} (cap hit: {any([ctx.inbox_volume_flag])})")
+    print(f"  dalton gmail: {len(ctx.dalton_gmail)}")
     print(f"  maggie gmail: {len(ctx.maggie_gmail)}")
     print(f"  kid_school emails: {len(ctx.kid_school_emails)}")
     print(f"  meals library: {len(ctx.meals_library)}")
     print(f"  date night ideas: {len(ctx.date_night_ideas)}")
     print(f"  screen time ideas: {len(ctx.screen_time_ideas)}")
     print(f"  upcoming deadlines: {len(ctx.upcoming_deadlines)}")
+    if ctx.inbox_volume_flag:
+        print("  [!] inbox volume cap hit on at least one Gmail account")
 
 
 if __name__ == "__main__":
