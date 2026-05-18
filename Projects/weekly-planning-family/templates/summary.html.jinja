@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Weekly Planning Summary — Week starting Fri {{ week_start_display }}</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; max-width: 900px; margin: 24px auto; padding: 0 16px; color-scheme: light dark; }
+  h1 { margin-bottom: 4px; }
+  h2 { margin-top: 24px; border-bottom: 1px solid #ccc; padding-bottom: 4px; }
+  h3 { margin-top: 16px; color: #555; }
+  .meta { color: #666; margin-bottom: 12px; }
+  ul { margin: 8px 0; padding-left: 24px; }
+  li { margin-bottom: 4px; }
+  .owner-tag { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 12px; background: #eef; margin-left: 6px; }
+  .success { background: #e6f4ea; border-left: 3px solid #1e8e3e; padding: 8px 12px; margin: 4px 0; }
+  .failed { background: #fce4e4; border-left: 3px solid #d32f2f; padding: 8px 12px; margin: 4px 0; }
+  .retry-btn { background: #d32f2f; color: white; padding: 4px 10px; border: none; border-radius: 3px; cursor: pointer; font-size: 13px; }
+</style>
+</head>
+<body>
+
+<h1>Weekly Planning — Saved</h1>
+<p class="meta">Week starting Fri {{ week_start_display }} &middot; Saved {{ saved_at }}</p>
+
+{% if results.failed %}
+<h2>⚠️ Failed writes</h2>
+{% for target in results.failed %}
+  <div class="failed">
+    <b>{{ target.label }}</b>: {{ target.error }}
+    <form method="POST" action="/save/retry/{{ target.key }}" style="display:inline;">
+      <button type="submit" class="retry-btn">Retry</button>
+    </form>
+  </div>
+{% endfor %}
+{% endif %}
+
+<h2>What got created</h2>
+{% for target in results.succeeded %}
+  <div class="success"><b>{{ target.label }}</b> &mdash; {{ target.detail }}</div>
+{% endfor %}
+
+<h2>Decisions</h2>
+
+<h3>Retrospective notes</h3>
+{% if decisions.retrospective_note %}
+<p>{{ decisions.retrospective_note }}</p>
+{% else %}<p><i>None recorded.</i></p>{% endif %}
+
+<h3>Dinners</h3>
+<ul>
+{% for d in decisions.dinners %}<li><b>{{ d.day }}</b>: {{ d.meal }}</li>{% endfor %}
+</ul>
+
+<h3>Shopping</h3>
+<p><b>Necessary:</b></p>
+<ul>{% for item in decisions.shopping_necessary %}<li>{{ item }}</li>{% endfor %}</ul>
+{% if decisions.shopping_wants %}
+<p><b>Less necessary:</b></p>
+<ul>{% for item in decisions.shopping_wants %}<li>{{ item }}</li>{% endfor %}</ul>
+{% endif %}
+
+<h3>Dalton's home schedule</h3>
+<ul>
+{% for d in decisions.home_schedule %}<li><b>{{ d.day }}</b>: {{ d.note }}</li>{% endfor %}
+</ul>
+
+<h3>Maggie's art time</h3>
+<ul>
+{% for b in decisions.art_blocks %}<li><b>{{ b.date }}</b>: {{ b.start }}–{{ b.end }}</li>{% endfor %}
+</ul>
+
+<h3>Babysitter</h3>
+{% if decisions.babysitter %}
+<p>{{ decisions.babysitter.date }} at {{ decisions.babysitter.time }} — asking {{ decisions.babysitter.who }}</p>
+{% else %}<p><i>Not needed this week.</i></p>{% endif %}
+
+<h3>Kids' activities (new)</h3>
+<ul>
+{% for k in decisions.kids_activities %}<li><b>{{ k.date }} {{ k.time }}</b>: {{ k.title }} <span class="owner-tag">{{ k.owner }}</span></li>{% endfor %}
+</ul>
+
+<h3>Church + temple</h3>
+<ul>{% for line in decisions.church_lines %}<li>{{ line }}</li>{% endfor %}</ul>
+
+<h3>Around the house</h3>
+<ul>{% for line in decisions.home_lines %}<li>{{ line }}</li>{% endfor %}</ul>
+
+<h3>New deadlines</h3>
+<ul>{% for line in decisions.new_deadlines %}<li>{{ line }}</li>{% endfor %}</ul>
+
+<h3>Finances</h3>
+{% if decisions.finances_notes %}<p>{{ decisions.finances_notes }}</p>{% else %}<p><i>Nothing this week.</i></p>{% endif %}
+
+<h3>Come Follow Me</h3>
+{% if decisions.cfm_notes %}<p>{{ decisions.cfm_notes }}</p>{% else %}<p><i>No notes.</i></p>{% endif %}
+
+<h3>Date night</h3>
+{% if decisions.date_night %}
+<p>{{ decisions.date_night.date }} {{ decisions.date_night.time }} — {{ decisions.date_night.choice }}</p>
+{% else %}<p><i>None set.</i></p>{% endif %}
+
+</body>
+</html>

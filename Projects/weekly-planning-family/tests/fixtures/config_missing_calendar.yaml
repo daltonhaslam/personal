@@ -1,0 +1,31 @@
+session:
+  default_day: thursday
+  default_time: "20:00"
+  browser: "Google Chrome"
+  server_port: 8000
+  server_abandon_timeout_hours: 4
+
+calendars:
+  shared_meals: shared-meals-id@group.calendar.google.com
+  dalton_personal: dalton@example.com
+  schools: []
+
+gmail:
+  accounts:
+    - name: dalton
+      address: dalton@example.com
+    - name: maggie
+      address: maggie@example.com
+  kid_school_label_id: Label_x
+  default_query: "newer_than:7d"
+  max_results_per_account: 50
+
+todoist:
+  projects: {}
+  collaborator_ids:
+    dalton: "9001"
+    maggie: "9002"
+
+family:
+  owners: [Dalton, Maggie]
+  kids: []

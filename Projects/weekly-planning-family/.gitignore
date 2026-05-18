@@ -12,7 +12,12 @@ config.yaml
 context.json
 retrospective.json
 margin_flags.json
+cfm_title.txt
 session.html
+
+# Allow test fixtures that share names with ignored runtime files
+!tests/fixtures/retrospective.json
+!tests/fixtures/margin_flags.json
 
 # OS
 .DS_Store

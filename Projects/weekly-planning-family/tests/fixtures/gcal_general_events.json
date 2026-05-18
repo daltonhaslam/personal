@@ -1,0 +1,6 @@
+[
+  {"title": "Soccer practice", "start": "5:00 PM", "end": "6:00 PM", "date": "2026-05-23"},
+  {"title": "Birthday party", "start": "2:00 PM", "end": "4:00 PM", "date": "2026-05-24", "location": "Park"},
+  {"title": "Doctor visit", "start": "9:00 AM", "end": "9:30 AM", "date": "2026-05-26"},
+  {"title": "Anniversary", "start": "all-day", "end": "all-day", "date": "2026-06-10"}
+]
