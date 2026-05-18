@@ -13,6 +13,8 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+from src.constants import GCAL_FETCH
+
 
 @dataclass
 class Event:
@@ -92,9 +94,6 @@ def _run_skill(skill_path: str | Path, args: list[str]) -> Any:
         capture_output=True, text=True, check=True,
     )
     return json.loads(result.stdout)
-
-
-from src.constants import GCAL_FETCH
 
 
 def compute_week_window(today: date | None = None) -> tuple[date, date, date]:
