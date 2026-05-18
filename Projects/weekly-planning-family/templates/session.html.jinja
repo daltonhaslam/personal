@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Weekly Planning — {{ ctx.week_start }} → {{ ctx.week_end }}</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; max-width: 900px; margin: 24px auto; padding: 0 16px; color-scheme: light dark; }
+  h1 { margin-bottom: 4px; }
+  h2 { margin-top: 32px; border-bottom: 1px solid #ccc; padding-bottom: 4px; }
+  h3 { margin-top: 20px; }
+  .meta { color: #666; margin-bottom: 16px; }
+  .flag { background: #fff4e5; border-left: 3px solid #f5a623; padding: 8px 12px; margin: 6px 0; }
+  ul.bullets li { margin-bottom: 6px; }
+  table.week { border-collapse: collapse; width: 100%; }
+  table.week th, table.week td { border: 1px solid #ddd; padding: 6px; text-align: left; vertical-align: top; font-size: 13px; }
+  .src-general { color: #1a73e8; }
+  .src-meals { color: #34a853; }
+  .src-school { color: #a142f4; }
+  .src-personal { color: #ea4335; }
+  fieldset { border: 1px solid #ddd; padding: 12px; margin-top: 16px; }
+  legend { font-weight: 600; padding: 0 6px; }
+  .row { display: grid; grid-template-columns: 110px 1fr 110px 130px; gap: 8px; margin-bottom: 6px; align-items: center; }
+  .row label { font-size: 13px; }
+  input[type=text], input[type=time], textarea, select { padding: 4px 6px; font: inherit; }
+  textarea { width: 100%; min-height: 80px; font-family: inherit; }
+  .save-btn { background: #1a73e8; color: white; padding: 12px 24px; font-size: 16px; border: none; border-radius: 4px; cursor: pointer; margin: 24px 0; }
+  .save-btn:disabled { background: #888; cursor: wait; }
+  .display-only { color: #555; font-size: 13px; padding: 4px 0; }
+  .pre-loaded-row { background: #f8f8f8; padding: 4px 6px; border-radius: 3px; font-size: 13px; margin: 2px 0; }
+  .error-banner { background: #fce4e4; border-left: 3px solid #d32f2f; padding: 8px 12px; margin: 6px 0; }
+</style>
+</head>
+<body>
+
+<h1>Weekly Planning</h1>
+<p class="meta">Week of {{ ctx.week_start }} → {{ ctx.week_end }} &middot; Generated {{ generated_at }}</p>
+
+<!-- TOP BAND — read-only context -->
+
+<h2>Last week — what happened</h2>
+<ul class="bullets">
+{% for bullet in retrospective.bullets %}<li>{{ bullet }}</li>{% endfor %}
+</ul>
+<label>Anything else worth noting? <textarea name="retrospective_note" form="planning-form"></textarea></label>
+
+<h2>Week ahead at a glance</h2>
+<table class="week">
+  <thead><tr>
+    {% for day in week_days %}<th>{{ day.label }}<br><small>{{ day.iso }}</small></th>{% endfor %}
+  </tr></thead>
+  <tbody><tr>
+    {% for day in week_days %}
+      <td>
+        {% for ev in day.events %}
+          <div><span class="src-{{ ev.source.split(':')[0].split('-')[0] }}"><b>{{ ev.start }}</b></span> {{ ev.title }}
+            {% if ev.location %}<i>({{ ev.location }})</i>{% endif %}
+          </div>
+        {% endfor %}
+      </td>
+    {% endfor %}
+  </tr></tbody>
+</table>
+
+<h2>Horizon (next 2-4 weeks)</h2>
+<ul class="bullets">
+{% for ev in horizon_events %}
+  <li><b>{{ ev.date }}</b> &mdash; {{ ev.title }}{% if ev.location %} <i>({{ ev.location }})</i>{% endif %}</li>
+{% endfor %}
+{% if not horizon_events %}<li><i>Nothing notable in the horizon.</i></li>{% endif %}
+</ul>
+
+{% if margin_flags.flags %}
+<h2>Heads-up</h2>
+{% for flag in margin_flags.flags %}<div class="flag">{{ flag }}</div>{% endfor %}
+{% endif %}
+
+<!-- MIDDLE BAND — decisions -->
+
+<form id="planning-form">
+
+<fieldset><legend>Dinners (Fri → Thu)</legend>
+  <p class="display-only">Last week we ate: {% for m in ctx.meal_events_last %}{{ m.title }}{% if not loop.last %}, {% endif %}{% endfor %}{% if not ctx.meal_events_last %}<i>nothing recorded</i>{% endif %}.</p>
+  {% for day in week_days %}
+    <div class="row">
+      <label>{{ day.label }}:</label>
+      <input type="text" name="dinner_{{ day.iso }}" list="meals-list" placeholder="meal name or 'eating out'">
+    </div>
+  {% endfor %}
+  <datalist id="meals-list">
+    {% for m in ctx.meals_library %}<option value="{{ m.content }}">{% endfor %}
+  </datalist>
+  <div class="row">
+    <label>New meal idea:</label>
+    <input type="text" name="new_meal" placeholder="(writes to Meals)">
+  </div>
+</fieldset>
+
+<fieldset><legend>Shopping list</legend>
+  <label>Necessary (writes to "To buy"):
+    <textarea name="shopping_necessary" placeholder="one item per line"></textarea>
+  </label>
+  <label>Less necessary (writes to "To buy (less necessary)"):
+    <textarea name="shopping_wants" placeholder="one item per line"></textarea>
+  </label>
+</fieldset>
+
+<fieldset><legend>Dalton's home schedule</legend>
+  {% for day in week_days_weekday %}
+    <div class="row">
+      <label>{{ day.label }}:</label>
+      <label><input type="checkbox" name="wfh_{{ day.iso }}"> WFH all day</label>
+      <label>Home by: <input type="time" name="home_by_{{ day.iso }}"></label>
+    </div>
+  {% endfor %}
+</fieldset>
+
+<fieldset><legend>Maggie's art time</legend>
+  <p class="display-only">Add a row per art block. Will write timed events to the shared calendar.</p>
+  <div id="art-blocks">
+    <div class="row">
+      <label>Date:</label>
+      <input type="date" name="art_date_0">
+      <label>Start: <input type="time" name="art_start_0"></label>
+      <label>End: <input type="time" name="art_end_0"></label>
+    </div>
+  </div>
+  <button type="button" onclick="addArtBlock()">+ Add another art block</button>
+</fieldset>
+
+<fieldset><legend>Babysitter</legend>
+  <div class="row">
+    <label><input type="checkbox" name="babysitter_needed"> Need babysitter this week</label>
+    <input type="date" name="babysitter_date">
+    <input type="time" name="babysitter_time">
+    <input type="text" name="babysitter_who" placeholder="who to ask">
+  </div>
+</fieldset>
+
+<fieldset><legend>Kids' activities</legend>
+  <p class="display-only">Already on school calendar / in Kid's School emails:</p>
+  {% for ev in ctx.school_events %}
+    <div class="pre-loaded-row">{{ ev.date }} &mdash; {{ ev.title }} ({{ ev.start }})</div>
+  {% endfor %}
+  {% for m in ctx.kid_school_emails[:5] %}
+    <div class="pre-loaded-row"><b>{{ m.subject }}</b> <i>({{ m.sender }})</i> &mdash; {{ m.snippet }}</div>
+  {% endfor %}
+  <p class="display-only">New activities to add (will write to shared calendar):</p>
+  <div id="kids-activities">
+    <div class="row">
+      <input type="text" name="kid_activity_title_0" placeholder="title">
+      <input type="date" name="kid_activity_date_0">
+      <input type="time" name="kid_activity_time_0">
+      <select name="kid_activity_owner_0"><option>Dalton</option><option>Maggie</option><option>Both</option></select>
+    </div>
+  </div>
+  <button type="button" onclick="addKidActivity()">+ Add another kid activity</button>
+</fieldset>
+
+<fieldset><legend>Church + temple</legend>
+  <textarea name="church_notes" placeholder="temple visits, ward activities, ministering — one per line"></textarea>
+</fieldset>
+
+<fieldset><legend>Around the house</legend>
+  <textarea name="home_notes" placeholder="repairs, projects — one per line, writes to Home"></textarea>
+</fieldset>
+
+<fieldset><legend>Major deadlines</legend>
+  <p class="display-only">Already in Todoist:</p>
+  {% for d in ctx.upcoming_deadlines %}
+    <div class="pre-loaded-row"><b>{{ d.deadline }}</b> &mdash; {{ d.content }}</div>
+  {% endfor %}
+  <textarea name="new_deadlines" placeholder="new deadline items — one per line (writes to MD ToDos)"></textarea>
+</fieldset>
+
+<!-- BOTTOM BAND -->
+
+<fieldset><legend>Finances (discussion)</legend>
+  <textarea name="finances_notes" placeholder="bills, large purchases, savings goals, joint accounts"></textarea>
+</fieldset>
+
+<fieldset><legend>Come Follow Me</legend>
+  <p class="display-only">This week's lesson: <b>{{ cfm_lesson_title }}</b></p>
+  <textarea name="cfm_notes" placeholder="who's leading, prep notes, activities for kids"></textarea>
+</fieldset>
+
+<fieldset><legend>Fun close — date night</legend>
+  <p class="display-only">Suggestions:</p>
+  <ul class="bullets">
+    {% for s in date_night_suggestions %}<li>{{ s }}</li>{% endfor %}
+  </ul>
+  <div class="row">
+    <label>Pick or write in:</label>
+    <input type="text" name="date_night_choice" placeholder="our date night">
+    <input type="date" name="date_night_date">
+    <input type="time" name="date_night_time">
+  </div>
+</fieldset>
+
+<button type="button" class="save-btn" id="save-btn" onclick="submitForm()">Save & write back</button>
+
+</form>
+
+<script>
+function collectFormData() {
+  const form = document.getElementById('planning-form');
+  const data = {};
+  for (const el of form.elements) {
+    if (!el.name) continue;
+    if (el.type === 'checkbox') data[el.name] = el.checked;
+    else data[el.name] = el.value;
+  }
+  return data;
+}
+
+let artCount = 1;
+function addArtBlock() {
+  const div = document.createElement('div');
+  div.className = 'row';
+  div.innerHTML = `<label>Date:</label>
+    <input type="date" name="art_date_${artCount}">
+    <label>Start: <input type="time" name="art_start_${artCount}"></label>
+    <label>End: <input type="time" name="art_end_${artCount}"></label>`;
+  document.getElementById('art-blocks').appendChild(div);
+  artCount++;
+}
+
+let kidCount = 1;
+function addKidActivity() {
+  const div = document.createElement('div');
+  div.className = 'row';
+  div.innerHTML = `<input type="text" name="kid_activity_title_${kidCount}" placeholder="title">
+    <input type="date" name="kid_activity_date_${kidCount}">
+    <input type="time" name="kid_activity_time_${kidCount}">
+    <select name="kid_activity_owner_${kidCount}"><option>Dalton</option><option>Maggie</option><option>Both</option></select>`;
+  document.getElementById('kids-activities').appendChild(div);
+  kidCount++;
+}
+
+async function submitForm() {
+  const btn = document.getElementById('save-btn');
+  btn.disabled = true;
+  btn.innerText = 'Writing back…';
+  try {
+    const resp = await fetch('/save', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(collectFormData()),
+    });
+    const html = await resp.text();
+    if (!resp.ok) {
+      document.body.innerHTML = '<div class="error-banner">Save failed (HTTP ' + resp.status + ')</div>' + html;
+      btn.disabled = false;
+      btn.innerText = 'Save & write back';
+      return;
+    }
+    document.open();
+    document.write(html);
+    document.close();
+  } catch (e) {
+    document.body.innerHTML = '<div class="error-banner">Save failed: ' + e.message + '</div>';
+    btn.disabled = false;
+    btn.innerText = 'Save & write back';
+  }
+}
+</script>
+
+</body>
+</html>
